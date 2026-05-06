@@ -1,0 +1,413 @@
+// lib/features/bem/requests/bem_requests_screen.dart
+// lib/features/bem/requests/bem_requests_screen.dart
+import 'package:campus_club/models/club_request_model.dart';
+import 'package:campus_club/models/club_model.dart';
+import 'package:campus_club/providers/auth_provider.dart';
+import 'package:campus_club/providers/bem_provider.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+
+class BemRequestsScreen extends ConsumerStatefulWidget {
+  const BemRequestsScreen({super.key});
+
+  @override
+  ConsumerState<BemRequestsScreen> createState() => _BemRequestsScreenState();
+}
+
+class _BemRequestsScreenState extends ConsumerState<BemRequestsScreen>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tab;
+
+  @override
+  void initState() {
+    super.initState();
+    _tab = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tab.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final requestsAsync = ref.watch(allClubRequestsProvider);
+
+    return Column(
+      children: [
+        TabBar(
+          controller: _tab,
+          tabs: const [
+            Tab(text: 'Pending'),
+            Tab(text: 'Reviewed'),
+          ],
+        ),
+        Expanded(
+          child: requestsAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, _) => Center(child: Text('Error: $e')),
+            data: (requests) {
+              final pending = requests
+                  .where((r) => r.status == RequestStatus.pending)
+                  .toList();
+              final reviewed = requests
+                  .where((r) => r.status != RequestStatus.pending)
+                  .toList();
+
+              return TabBarView(
+                controller: _tab,
+                children: [
+                  _RequestList(requests: pending, isPending: true),
+                  _RequestList(requests: reviewed, isPending: false),
+                ],
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _RequestList extends ConsumerWidget {
+  final List<ClubRequestModel> requests;
+  final bool isPending;
+
+  const _RequestList({required this.requests, required this.isPending});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+
+    if (requests.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              isPending
+                  ? Icons.inbox_outlined
+                  : Icons.check_circle_outline_rounded,
+              size: 72,
+              color: theme.colorScheme.outline,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              isPending ? 'No pending requests' : 'No reviewed requests yet',
+              style: theme.textTheme.titleMedium,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: requests.length,
+      itemBuilder: (_, i) => _RequestCard(
+        request: requests[i],
+        isPending: isPending,
+      ),
+    );
+  }
+}
+
+class _RequestCard extends ConsumerWidget {
+  final ClubRequestModel request;
+  final bool isPending;
+
+  const _RequestCard({required this.request, required this.isPending});
+
+  String _typeLabel(RequestType t) => switch (t) {
+        RequestType.create => 'New Club',
+        RequestType.renew => 'Renewal',
+        RequestType.update => 'Update',
+      };
+
+  Color _typeColor(RequestType t, ColorScheme cs) => switch (t) {
+        RequestType.create => cs.primary,
+        RequestType.renew => Colors.teal,
+        RequestType.update => Colors.orange,
+      };
+
+  Color _statusColor(RequestStatus s) => switch (s) {
+        RequestStatus.pending => Colors.orange,
+        RequestStatus.approved => Colors.green,
+        RequestStatus.rejected => Colors.red,
+      };
+
+  String _statusLabel(RequestStatus s) => switch (s) {
+        RequestStatus.pending => 'Pending',
+        RequestStatus.approved => 'Approved',
+        RequestStatus.rejected => 'Rejected',
+      };
+
+  Future<void> _handleAction(
+    BuildContext context,
+    WidgetRef ref,
+    bool approve,
+  ) async {
+    final noteController = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(approve ? 'Approve Request' : 'Reject Request'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(approve
+                ? 'This will activate the club and notify the BoD.'
+                : 'Please provide a reason for rejection.'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: noteController,
+              decoration: InputDecoration(
+                labelText: approve ? 'Note (optional)' : 'Reason *',
+                alignLabelWithHint: true,
+              ),
+              maxLines: 3,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: approve
+                ? null
+                : FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(approve ? 'Approve' : 'Reject'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !context.mounted) return;
+
+    final bemUser = ref.read(currentUserProvider).valueOrNull;
+    if (bemUser == null) return;
+
+    try {
+      await ref.read(bemServiceProvider).reviewRequest(
+            requestId: request.requestId,
+            clubId: request.clubId,
+            approve: approve,
+            reviewedBy: bemUser.uid,
+            reviewNote: noteController.text.trim().isEmpty
+                ? null
+                : noteController.text.trim(),
+          );
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(approve
+                ? '✅ Club approved and activated!'
+                : '❌ Request rejected.'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final fmt = DateFormat('dd MMM yyyy, HH:mm');
+    final typeColor = _typeColor(request.type, theme.colorScheme);
+
+    // Load the associated club info
+    final clubAsync = ref.watch(clubByIdProvider(request.clubId));
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Top row: type badge + status badge ──
+            Row(
+              children: [
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: typeColor.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: typeColor.withOpacity(0.4)),
+                  ),
+                  child: Text(
+                    _typeLabel(request.type),
+                    style: TextStyle(
+                      color: typeColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color:
+                        _statusColor(request.status).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    _statusLabel(request.status),
+                    style: TextStyle(
+                      color: _statusColor(request.status),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 12),
+
+            // ── Club info (loaded from Firestore) ──
+            clubAsync.when(
+              loading: () => const SizedBox(
+                height: 40,
+                child: Center(
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+              error: (_, __) => Text('Club ID: ${request.clubId}',
+                  style: theme.textTheme.bodySmall),
+              data: (club) {
+                if (club == null) {
+                  return Text('Club not found',
+                      style: TextStyle(color: theme.colorScheme.error));
+                }
+                return Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 22,
+                      backgroundColor: theme.colorScheme.primaryContainer,
+                      backgroundImage: club.logoUrl != null
+                          ? NetworkImage(club.logoUrl!)
+                          : null,
+                      child: club.logoUrl == null
+                          ? Text(club.name[0].toUpperCase(),
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color:
+                                      theme.colorScheme.onPrimaryContainer))
+                          : null,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(club.name,
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold)),
+                          Text(
+                            '${club.meetingDay} · ${club.meetingTime} · Room ${club.roomNumber}',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.outline),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+
+            const SizedBox(height: 12),
+            Divider(height: 1, color: theme.colorScheme.outlineVariant),
+            const SizedBox(height: 10),
+
+            // ── Meta info ──
+            Row(
+              children: [
+                Icon(Icons.schedule_rounded,
+                    size: 13, color: theme.colorScheme.outline),
+                const SizedBox(width: 4),
+                Text(
+                  'Submitted ${fmt.format(request.createdAt)}',
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: theme.colorScheme.outline),
+                ),
+              ],
+            ),
+
+            if (request.reviewNote != null) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceVariant,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.comment_rounded,
+                        size: 14, color: theme.colorScheme.outline),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        request.reviewNote!,
+                        style: theme.textTheme.bodySmall,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
+            // ── Action buttons (only for pending) ──
+            if (isPending) ...[
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.red,
+                        side: const BorderSide(color: Colors.red),
+                      ),
+                      onPressed: () =>
+                          _handleAction(context, ref, false),
+                      icon: const Icon(Icons.close_rounded, size: 18),
+                      label: const Text('Reject'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: () =>
+                          _handleAction(context, ref, true),
+                      icon: const Icon(Icons.check_rounded, size: 18),
+                      label: const Text('Approve'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}

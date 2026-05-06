@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "sgu_ukm" "\0"
+            VALUE "CompanyName", "com.bryant" "\0"
+            VALUE "FileDescription", "ukm_app" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "sgu_ukm" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.example. All rights reserved." "\0"
-            VALUE "OriginalFilename", "sgu_ukm.exe" "\0"
-            VALUE "ProductName", "sgu_ukm" "\0"
+            VALUE "InternalName", "ukm_app" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 com.bryant. All rights reserved." "\0"
+            VALUE "OriginalFilename", "ukm_app.exe" "\0"
+            VALUE "ProductName", "ukm_app" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

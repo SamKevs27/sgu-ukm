@@ -1,6 +1,6 @@
 {
-    "name": "sgu_ukm",
-    "short_name": "sgu_ukm",
+    "name": "ukm_app",
+    "short_name": "ukm_app",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
