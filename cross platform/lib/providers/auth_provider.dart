@@ -1,3 +1,4 @@
+// lib/providers/auth_provider.dart
 import 'package:campus_club/models/user_model.dart';
 import 'package:campus_club/services/auth_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';

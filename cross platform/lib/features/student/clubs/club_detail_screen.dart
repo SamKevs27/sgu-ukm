@@ -1,3 +1,4 @@
+// lib/features/student/clubs/club_detail_screen.dart
 import 'package:campus_club/providers/club_provider.dart';
 import 'package:campus_club/models/club_model.dart';
 import 'package:campus_club/providers/auth_provider.dart';

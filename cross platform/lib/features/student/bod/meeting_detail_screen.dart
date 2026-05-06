@@ -1,3 +1,5 @@
+// lib/features/student/bod/meeting_detail_screen.dart
+import 'package:campus_club/models/attendance_model.dart';
 import 'dart:convert';
 import 'package:campus_club/models/club_model.dart';
 import 'package:campus_club/models/meeting_model.dart';
@@ -13,6 +15,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'dart:io';
 import 'package:campus_club/models/user_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:campus_club/models/attendance_model.dart';
 
 class MeetingDetailScreen extends ConsumerStatefulWidget {
   final MeetingModel meeting;

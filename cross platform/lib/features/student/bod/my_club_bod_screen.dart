@@ -1,3 +1,4 @@
+// lib/features/student/bod/my_club_bod_screen.dart
 import 'package:campus_club/features/student/bod/club_management_screen.dart';
 import 'package:campus_club/models/club_model.dart';
 import 'package:campus_club/providers/club_provider.dart';

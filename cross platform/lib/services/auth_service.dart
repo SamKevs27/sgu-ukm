@@ -71,4 +71,36 @@ class AuthService {
     if (!doc.exists) return null;
     return UserModel.fromFirestore(doc);
   }
+
+  // 
+  Future<List<UserModel>> searchStudents(String query) async {
+  final q = query.toLowerCase().trim();
+
+  // Search by name prefix — no composite index needed
+  final byName = await _db
+      .collection('users')
+      .where('nameLower', isGreaterThanOrEqualTo: q)
+      .where('nameLower', isLessThan: '${q}z')
+      .limit(20)
+      .get();
+
+  // Search by email prefix — no composite index needed
+  final byEmail = await _db
+      .collection('users')
+      .where('email', isGreaterThanOrEqualTo: q)
+      .where('email', isLessThan: '${q}z')
+      .limit(20)
+      .get();
+
+  // Merge, deduplicate, then filter role client-side
+  final seen = <String>{};
+  final results = <UserModel>[];
+  for (final doc in [...byName.docs, ...byEmail.docs]) {
+    if (seen.add(doc.id)) {
+      final user = UserModel.fromFirestore(doc);
+      if (user.role == UserRole.student) results.add(user); // 👈 filter here
+    }
+  }
+  return results;
+}
 }

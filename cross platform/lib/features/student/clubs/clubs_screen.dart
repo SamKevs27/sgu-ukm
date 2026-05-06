@@ -1,3 +1,4 @@
+// lib/features/student/clubs/clubs_screen.dart
 import 'package:campus_club/features/student/clubs/club_detail_screen.dart';
 import 'package:campus_club/features/student/clubs/create_club_screen.dart';
 import 'package:campus_club/models/club_model.dart';

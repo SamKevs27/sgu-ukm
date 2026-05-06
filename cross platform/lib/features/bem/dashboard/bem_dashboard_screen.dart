@@ -1,3 +1,4 @@
+// lib/features/bem/dashboard/bem_dashboard_screen.dart
 import 'package:flutter/material.dart';
 
 class BemDashboardScreen extends StatelessWidget {

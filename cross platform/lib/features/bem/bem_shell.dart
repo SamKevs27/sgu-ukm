@@ -1,3 +1,4 @@
+// lib/features/bem/bem_shell.dart
 import 'package:campus_club/features/bem/clubs/bem_clubs_screen.dart';
 import 'package:campus_club/features/bem/cycles/bem_cycles_screen.dart';
 import 'package:campus_club/features/bem/dashboard/bem_dashboard_screen.dart';

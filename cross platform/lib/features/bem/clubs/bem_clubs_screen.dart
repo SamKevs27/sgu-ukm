@@ -1,3 +1,4 @@
+// lib/features/bem/clubs/bem_clubs_screen.dart
 import 'package:flutter/material.dart';
 
 class BemClubsScreen extends StatelessWidget {
