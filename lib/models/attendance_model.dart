@@ -9,6 +9,11 @@ class AttendanceModel extends Equatable {
   final String nim;
   final DateTime markedAt;
   final AttendanceMethod method;
+  final String clubId;
+  final String cycleId;
+  final String meetingId;
+  final DateTime checkedInAt;
+  
 
   const AttendanceModel({
     required this.userId,
@@ -16,20 +21,36 @@ class AttendanceModel extends Equatable {
     required this.nim,
     required this.markedAt,
     required this.method,
+    required this.clubId,
+    required this.cycleId,
+    required this.meetingId,
+    required this.checkedInAt
   });
 
-  factory AttendanceModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
-    return AttendanceModel(
-      userId: doc.id,
-      name: data['name'] ?? '',
-      nim: data['nim'] ?? '',
-      markedAt: (data['markedAt'] as Timestamp).toDate(),
-      method: data['method'] == 'qr'
-          ? AttendanceMethod.qr
-          : AttendanceMethod.manual,
-    );
+  factory AttendanceModel.fromFirestore(
+  DocumentSnapshot<Map<String, dynamic>> doc,
+) {
+  final data = doc.data();
+
+  if (data == null) {
+    throw Exception('Attendance document does not exist');
   }
+
+  return AttendanceModel(
+    userId: data['userId'] ?? '',
+    clubId: data['clubId'] ?? '',
+    cycleId: data['cycleId'] ?? '',
+    meetingId: data['meetingId'] ?? '',
+    name: data['name'] ?? '',
+    nim: data['nim'] ?? '',
+    markedAt: (data['markedAt'] as Timestamp).toDate(),
+    checkedInAt:
+          (data['checkedInAt'] as Timestamp).toDate(),
+    method: data['method'] == 'qr'
+        ? AttendanceMethod.qr
+        : AttendanceMethod.manual,
+  );
+}
 
   Map<String, dynamic> toFirestore() => {
         'userId': userId,

@@ -107,4 +107,30 @@ class AttendanceService {
 
     return snap.docs.isNotEmpty;
   }
+
+  /// Watch all attendance records for a specific meeting
+  Stream<List<Map<String, dynamic>>> watchMeetingAttendees({
+    required String clubId,
+    required String meetingId,
+  }) {
+    return _db
+        .collection('attendance')
+        .where('clubId', isEqualTo: clubId)
+        .where('meetingId', isEqualTo: meetingId)
+        .snapshots()
+        .map((s) => s.docs.map((d) => d.data()).toList());
+  }
+
+  /// Watch attendance count for a meeting
+  Stream<int> watchMeetingAttendanceCount({
+    required String clubId,
+    required String meetingId,
+  }) {
+    return _db
+        .collection('attendance')
+        .where('clubId', isEqualTo: clubId)
+        .where('meetingId', isEqualTo: meetingId)
+        .snapshots()
+        .map((s) => s.docs.length);
+  }
 }

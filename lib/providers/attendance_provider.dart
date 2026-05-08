@@ -72,3 +72,12 @@ final hasAttendedProvider =
         userId: user.uid,
       );
 });
+
+final meetingAttendanceCountProvider =
+    StreamProvider.family<int, ({String clubId, String meetingId})>(
+        (ref, params) {
+  return ref.watch(attendanceServiceProvider).watchMeetingAttendanceCount(
+        clubId: params.clubId,
+        meetingId: params.meetingId,
+      );
+});
