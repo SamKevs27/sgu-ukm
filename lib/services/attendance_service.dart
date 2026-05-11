@@ -40,16 +40,16 @@ class AttendanceService {
       };
     }).toList();
 
-    /* meetings.sort(
-      (a, b) => (a['date'] as DateTime).compareTo(b['date'] as DateTime),
-    ); */
-
-    // sort meeting from newest to oldest
     meetings.sort(
       (a, b) => (b['date'] as DateTime).compareTo(a['date'] as DateTime),
     );
 
     return meetings;
+  }
+
+  bool _countsAsAttended(Map<String, dynamic> data) {
+    final status = data['status']?.toString() ?? '';
+    return status.isEmpty || status == 'attended';
   }
 
   /// Get attendance percentage + detail for a user in a club + cycle
@@ -68,7 +68,8 @@ class AttendanceService {
         .get();
 
     final attendedMeetingIds = attendanceSnap.docs
-        .map((d) => d['meetingId'] as String)
+        .where((d) => _countsAsAttended(d.data()))
+        .map((d) => d.data()['meetingId'] as String)
         .toSet();
 
     final detail = meetings.map((m) {
@@ -91,7 +92,7 @@ class AttendanceService {
     };
   }
 
-  /// Check if a user attended a specific meeting
+  /// Check if a user attended a specific meeting (supports any document id).
   Future<bool> hasAttended({
     required String clubId,
     required String meetingId,
@@ -102,10 +103,10 @@ class AttendanceService {
         .where('clubId', isEqualTo: clubId)
         .where('meetingId', isEqualTo: meetingId)
         .where('userId', isEqualTo: userId)
-        .limit(1)
+        .limit(5)
         .get();
 
-    return snap.docs.isNotEmpty;
+    return snap.docs.any((d) => _countsAsAttended(d.data()));
   }
 
   /// Watch all attendance records for a specific meeting
@@ -118,7 +119,12 @@ class AttendanceService {
         .where('clubId', isEqualTo: clubId)
         .where('meetingId', isEqualTo: meetingId)
         .snapshots()
-        .map((s) => s.docs.map((d) => d.data()).toList());
+        .map(
+          (s) => s.docs
+              .map((d) => d.data())
+              .where(_countsAsAttended)
+              .toList(),
+        );
   }
 
   /// Watch attendance count for a meeting
@@ -131,6 +137,10 @@ class AttendanceService {
         .where('clubId', isEqualTo: clubId)
         .where('meetingId', isEqualTo: meetingId)
         .snapshots()
-        .map((s) => s.docs.length);
+        .map(
+          (s) => s.docs
+              .where((d) => _countsAsAttended(d.data()))
+              .length,
+        );
   }
 }

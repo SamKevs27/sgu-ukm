@@ -2,6 +2,7 @@ import 'package:campus_club/models/club_model.dart';
 import 'package:campus_club/models/club_request_model.dart';
 import 'package:campus_club/models/member_model.dart';
 import 'package:campus_club/models/user_model.dart';
+import 'package:campus_club/services/bod_validation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:uuid/uuid.dart';
 
@@ -167,6 +168,8 @@ class ClubService {
       createdAt: DateTime.now(),
     );
 
+    await ensureBodMembersAreStudents(_db, bod);
+
     final batch = _db.batch();
     batch.set(clubRef, club.toFirestore());
     batch.set(requestRef, request.toFirestore());
@@ -273,8 +276,10 @@ class ClubService {
       _db.collection('clubs').doc(clubId).update({'status': 'active'});
 
   /// BEM updates BoD
-  Future<void> updateBod({required String clubId, required BodModel bod}) =>
-      _db.collection('clubs').doc(clubId).update({'bod': bod.toMap()});
+  Future<void> updateBod({required String clubId, required BodModel bod}) async {
+    await ensureBodMembersAreStudents(_db, bod);
+    await _db.collection('clubs').doc(clubId).update({'bod': bod.toMap()});
+  }
 
   /// Fetch a single club once
   Future<ClubModel?> getClub(String clubId) async {

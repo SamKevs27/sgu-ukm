@@ -1,6 +1,7 @@
 // lib/services/bem_service.dart
 import 'package:campus_club/models/club_model.dart';
 import 'package:campus_club/models/club_request_model.dart';
+import 'package:campus_club/services/bod_validation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class BemService {
@@ -100,6 +101,7 @@ class BemService {
     required String clubId,
     required BodModel newBod,
   }) async {
+    await ensureBodMembersAreStudents(_db, newBod);
     await _db.collection('clubs').doc(clubId).update({
       'bod': newBod.toMap(),
     });

@@ -1,21 +1,21 @@
 // lib/features/student/bod/meeting_detail_screen.dart
-import 'package:campus_club/models/attendance_model.dart';
 import 'dart:convert';
+import 'dart:io';
+
+import 'package:campus_club/models/attendance_model.dart';
 import 'package:campus_club/models/club_model.dart';
 import 'package:campus_club/models/meeting_model.dart';
+import 'package:campus_club/models/user_model.dart';
 import 'package:campus_club/providers/club_provider.dart';
 import 'package:campus_club/providers/meeting_provider.dart';
-import 'package:campus_club/services/meeting_service.dart';
 import 'package:campus_club/services/storage_service.dart';
+import 'package:campus_club/utils/iterable_extensions.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'dart:io';
-import 'package:campus_club/models/user_model.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:campus_club/models/attendance_model.dart';
 
 class MeetingDetailScreen extends ConsumerStatefulWidget {
   final MeetingModel meeting;
@@ -33,6 +33,7 @@ class _MeetingDetailScreenState
   final _descController = TextEditingController();
   bool _uploadingPhoto = false;
   bool _savingDesc = false;
+  final Set<String> _attendanceToggleBusy = {};
 
   @override
   void initState() {
@@ -87,29 +88,6 @@ class _MeetingDetailScreenState
       }
     } finally {
       if (mounted) setState(() => _savingDesc = false);
-    }
-  }
-
-  Future<void> _publishToFeed() async {
-    if (_descController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Add a description before publishing.')),
-      );
-      return;
-    }
-    await ref.read(meetingServiceProvider).publishToFeed(
-          clubId: widget.club.clubId,
-          clubName: widget.club.name,
-          meetingId: widget.meeting.meetingId,
-          description: _descController.text.trim(),
-          photoUrls: widget.meeting.photoUrls,
-          clubLogoUrl: widget.club.logoUrl,
-        );
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('✅ Published to FYP feed!')),
-      );
     }
   }
 
@@ -199,24 +177,13 @@ class _MeetingDetailScreenState
                     ),
                   ),
                   const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: _savingDesc ? null : _saveDescription,
-                          icon: const Icon(Icons.save_rounded),
-                          label: const Text('Save'),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: _publishToFeed,
-                          icon: const Icon(Icons.public_rounded),
-                          label: const Text('Publish to FYP'),
-                        ),
-                      ),
-                    ],
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _savingDesc ? null : _saveDescription,
+                      icon: const Icon(Icons.save_rounded),
+                      label: const Text('Save'),
+                    ),
                   ),
                 ],
               ),
@@ -231,6 +198,19 @@ class _MeetingDetailScreenState
                 final members = membersAsync.valueOrNull ?? [];
                 return Column(
                   children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Members default to not attended. Turn on the switch to mark present (manual).',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: theme.colorScheme.outline,
+                          ),
+                        ),
+                      ),
+                    ),
                     Padding(
                       padding: const EdgeInsets.all(16),
                       child: Row(
@@ -280,41 +260,107 @@ class _MeetingDetailScreenState
                                   ),
                                   title: Text(member.name),
                                   subtitle: Text('NIM: ${member.nim}'),
-                                  trailing: present
-                                      ? Chip(
-                                          label: Text(
-                                            record?.method ==
-                                                    AttendanceMethod.qr
-                                                ? 'QR'
-                                                : 'Manual',
-                                            style: const TextStyle(
-                                                fontSize: 11),
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      if (present)
+                                        Padding(
+                                          padding:
+                                              const EdgeInsets.only(right: 8),
+                                          child: Chip(
+                                            label: Text(
+                                              record?.method ==
+                                                      AttendanceMethod.qr
+                                                  ? 'QR'
+                                                  : 'Manual',
+                                              style: const TextStyle(
+                                                  fontSize: 11),
+                                            ),
+                                            backgroundColor: Colors.green
+                                                .withOpacity(0.1),
                                           ),
-                                          backgroundColor: Colors.green
-                                              .withOpacity(0.1),
-                                        )
-                                      : TextButton(
-                                          onPressed: () async {
-                                            final userDoc =
-                                                await FirebaseFirestore
-                                                    .instance
-                                                    .collection('users')
-                                                    .doc(member.userId)
-                                                    .get();
-                                            final user = UserModel
-                                                .fromFirestore(userDoc);
-                                            await ref
-                                                .read(meetingServiceProvider)
-                                                .markAttendanceManually(
-                                                  clubId:
-                                                      widget.club.clubId,
-                                                  meetingId: widget
-                                                      .meeting.meetingId,
-                                                  user: user,
-                                                );
-                                          },
-                                          child: const Text('Mark'),
                                         ),
+                                      if (_attendanceToggleBusy
+                                          .contains(member.userId))
+                                        const SizedBox(
+                                          width: 24,
+                                          height: 24,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        )
+                                      else
+                                        Switch.adaptive(
+                                          value: present,
+                                          onChanged: (wantPresent) async {
+                                            setState(() => _attendanceToggleBusy
+                                                .add(member.userId));
+                                            try {
+                                              if (wantPresent) {
+                                                final userDoc =
+                                                    await FirebaseFirestore
+                                                        .instance
+                                                        .collection('users')
+                                                        .doc(member.userId)
+                                                        .get();
+                                                if (!userDoc.exists) {
+                                                  if (mounted) {
+                                                    ScaffoldMessenger.of(context)
+                                                        .showSnackBar(
+                                                      const SnackBar(
+                                                        content: Text(
+                                                          'User profile not found.',
+                                                        ),
+                                                      ),
+                                                    );
+                                                  }
+                                                  return;
+                                                }
+                                                final user = UserModel
+                                                    .fromFirestore(userDoc);
+                                                await ref
+                                                    .read(meetingServiceProvider)
+                                                    .markAttendanceManually(
+                                                      clubId: widget.club.clubId,
+                                                      cycleId: widget.meeting.cycleId,
+                                                      meetingId: widget.meeting.meetingId,
+                                                      user: user,
+                                                    );
+                                              } else {
+                                                await ref
+                                                    .read(meetingServiceProvider)
+                                                    .clearAttendance(
+                                                      clubId: widget.club.clubId,
+                                                      meetingId:
+                                                          widget.meeting.meetingId,
+                                                      userId: member.userId,
+                                                    );
+                                              }
+                                            } catch (e) {
+                                              if (!mounted) return;
+                                              ScaffoldMessenger.of(context)
+                                                  .showSnackBar(
+                                                SnackBar(
+                                                  content: Text(
+                                                    e
+                                                        .toString()
+                                                        .replaceAll(
+                                                            'Exception: ', ''),
+                                                  ),
+                                                ),
+                                              );
+                                            } finally {
+                                              if (mounted) {
+                                                setState(() =>
+                                                    _attendanceToggleBusy
+                                                        .remove(
+                                                            member.userId));
+                                              }
+                                            }
+                                          },
+                                        ),
+                                    ],
+                                  ),
                                 );
                               },
                             ),

@@ -45,5 +45,9 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Camera access is used to scan meeting QR codes for attendance.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Allows choosing a photo that contains a meeting QR code for attendance check-in.</string>
 </dict>
 </plist>

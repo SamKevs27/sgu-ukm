@@ -9,6 +9,9 @@ class MeetingService {
   final _db = FirebaseFirestore.instance;
   final _uuid = const Uuid();
 
+  static String attendanceDocumentId(String userId, String meetingId) =>
+      '${userId}_$meetingId';
+
   // ─── Streams ───────────────────────────────────────────────
 
   Stream<List<MeetingModel>> watchClubMeetings(String clubId) {
@@ -24,19 +27,23 @@ class MeetingService {
         });
   }
 
+  /// Top-level [attendance] collection (see Firestore schema).
   Stream<List<AttendanceModel>> watchMeetingAttendance(
-      String clubId, String meetingId) {
+    String clubId,
+    String meetingId,
+  ) {
     return _db
-        .collection('clubs')
-        .doc(clubId)
-        .collection('meetings')
-        .doc(meetingId)
         .collection('attendance')
+        .where('clubId', isEqualTo: clubId)
+        .where('meetingId', isEqualTo: meetingId)
         .snapshots()
         .map((s) {
-          final list = s.docs.map(AttendanceModel.fromFirestore).toList();
-          list.sort((a, b) => a.markedAt.compareTo(b.markedAt));
-          return list;
+          final list =
+              s.docs.map(AttendanceModel.fromFirestore).toList();
+          list.sort((a, b) => a.checkedInAt.compareTo(b.checkedInAt));
+          return list
+              .where((a) => a.isAttended)
+              .toList();
         });
   }
 
@@ -84,14 +91,27 @@ class MeetingService {
     return meeting;
   }
 
-  /// Mark attendance via QR scan
+  /// Mark attendance via QR scan (students only).
   Future<void> markAttendanceByQr({
     required String clubId,
     required String meetingId,
     required String qrToken,
     required UserModel user,
   }) async {
-    // Verify token
+    if (user.role != UserRole.student) {
+      throw Exception('Only student accounts can check in with QR.');
+    }
+
+    final memberSnap = await _db
+        .collection('clubs')
+        .doc(clubId)
+        .collection('members')
+        .doc(user.uid)
+        .get();
+    if (!memberSnap.exists) {
+      throw Exception('You must join this club before checking in.');
+    }
+
     final meetingDoc = await _db
         .collection('clubs')
         .doc(clubId)
@@ -112,45 +132,87 @@ class MeetingService {
 
     await _markAttendance(
         clubId: clubId,
+        cycleId: meeting.cycleId,
         meetingId: meetingId,
         user: user,
         method: AttendanceMethod.qr);
   }
 
-  /// BoD manually marks attendance
+  /// BoD manually marks attendance as present.
   Future<void> markAttendanceManually({
     required String clubId,
+    required String cycleId,
     required String meetingId,
     required UserModel user,
-  }) =>
-      _markAttendance(
-          clubId: clubId,
-          meetingId: meetingId,
-          user: user,
-          method: AttendanceMethod.manual);
+  }) {
+    if (user.role != UserRole.student) {
+      throw Exception('Only student accounts can be marked present.');
+    }
+    return _markAttendance(
+        clubId: clubId,
+        cycleId: cycleId,
+        meetingId: meetingId,
+        user: user,
+        method: AttendanceMethod.manual);
+  }
+
+  /// BoD clears attendance for this member at this meeting (handles legacy random doc IDs).
+  Future<void> clearAttendance({
+    required String clubId,
+    required String meetingId,
+    required String userId,
+  }) async {
+    final snap = await _db
+        .collection('attendance')
+        .where('clubId', isEqualTo: clubId)
+        .where('meetingId', isEqualTo: meetingId)
+        .where('userId', isEqualTo: userId)
+        .get();
+
+    for (final d in snap.docs) {
+      await d.reference.delete();
+    }
+  }
+
+  bool _countsAsPresent(Map<String, dynamic>? data) {
+    if (data == null) return false;
+    final status = data['status']?.toString() ?? '';
+    return status.isEmpty || status == 'attended';
+  }
 
   Future<void> _markAttendance({
     required String clubId,
+    required String cycleId,
     required String meetingId,
     required UserModel user,
     required AttendanceMethod method,
   }) async {
-    final ref = _db
-        .collection('clubs')
-        .doc(clubId)
-        .collection('meetings')
-        .doc(meetingId)
+    final dup = await _db
         .collection('attendance')
-        .doc(user.uid);
+        .where('clubId', isEqualTo: clubId)
+        .where('meetingId', isEqualTo: meetingId)
+        .where('userId', isEqualTo: user.uid)
+        .limit(10)
+        .get();
 
-    final existing = await ref.get();
-    if (existing.exists) throw Exception('Already marked as present.');
+    if (dup.docs.any((d) => _countsAsPresent(d.data()))) {
+      throw Exception('Already marked as present.');
+    }
 
+    final docId = attendanceDocumentId(user.uid, meetingId);
+    final ref = _db.collection('attendance').doc(docId);
+
+    final now = DateTime.now();
     await ref.set({
       'userId': user.uid,
+      'clubId': clubId,
+      'cycleId': cycleId,
+      'meetingId': meetingId,
+      'checkedInAt': Timestamp.fromDate(now),
+      'markedAt': Timestamp.fromDate(now),
+      'status': 'attended',
       'name': user.name,
       'nim': user.nim,
-      'markedAt': Timestamp.fromDate(DateTime.now()),
       'method': method.name,
     });
   }

@@ -1,8 +1,8 @@
+import 'package:campus_club/features/student/attendance/scan_attendance_screen.dart';
 import 'package:campus_club/features/student/clubs/clubs_screen.dart';
 import 'package:campus_club/features/student/fyp/fyp_screen.dart';
 import 'package:campus_club/features/student/my_clubs/my_clubs_screen.dart';
 import 'package:campus_club/features/student/bod/my_club_bod_screen.dart';
-import 'package:campus_club/providers/auth_provider.dart';
 import 'package:campus_club/shared/widgets/profile_popup.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -41,6 +41,17 @@ class _StudentShellState extends ConsumerState<StudentShell> {
       appBar: AppBar(
         title: const Text('Campus Club'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.qr_code_scanner_rounded),
+            tooltip: 'Scan meeting QR',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const ScanAttendanceScreen(),
+                ),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.account_circle_rounded),
             onPressed: () => _showProfile(context),
