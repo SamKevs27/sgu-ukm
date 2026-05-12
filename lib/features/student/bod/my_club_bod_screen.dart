@@ -1,7 +1,7 @@
 // lib/features/student/bod/my_club_bod_screen.dart
 import 'package:campus_club/features/student/bod/club_management_screen.dart';
 import 'package:campus_club/models/club_model.dart';
-import 'package:campus_club/models/cycle_model.dart';               // ← was missing
+import 'package:campus_club/models/cycle_model.dart';
 import 'package:campus_club/providers/club_provider.dart';
 import 'package:campus_club/providers/cycle_provider.dart';
 import 'package:flutter/material.dart';
@@ -55,24 +55,15 @@ class MyClubBodScreen extends ConsumerWidget {
     List<CycleModel>? cycles,
     ThemeData theme,
   ) {
-    // Build a cycleId → CycleModel map for O(1) lookup
-    final cycleMap = {
-      if (cycles != null)
-        for (final c in cycles) c.cycleId: c,
-    };
-
     if (cycles == null || cycles.isEmpty) {
       return ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: clubs.length,
-        itemBuilder: (_, i) => _BodClubCard(
-          club: clubs[i],
-          cycle: null,
-        ),
+        itemBuilder: (_, i) =>
+            _BodClubCard(club: clubs[i], cycle: null),
       );
     }
 
-    // Group clubs under their cycle, in newest-cycle-first order
     final grouped = <String, List<ClubModel>>{
       for (final c in cycles) c.cycleId: [],
     };
@@ -91,7 +82,6 @@ class MyClubBodScreen extends ConsumerWidget {
       final cycleClubs = grouped[cycle.cycleId] ?? [];
       if (cycleClubs.isEmpty) continue;
 
-      // Cycle header
       widgets.add(
         Padding(
           padding: const EdgeInsets.fromLTRB(4, 16, 4, 8),
@@ -112,7 +102,6 @@ class MyClubBodScreen extends ConsumerWidget {
       }
     }
 
-    // Clubs whose cycle no longer exists
     for (final club in ungrouped) {
       widgets.add(_BodClubCard(club: club, cycle: null));
     }
@@ -154,25 +143,29 @@ class MyClubBodScreen extends ConsumerWidget {
 
 class _BodClubCard extends StatelessWidget {
   final ClubModel club;
-
-  /// The cycle this club belongs to. Used to override the displayed status
-  /// when the cycle has ended — a club that is technically "active" in
-  /// Firestore should show as "Expired" if its cycle is over.
   final CycleModel? cycle;
 
   const _BodClubCard({required this.club, required this.cycle});
 
-  /// Effective status: if the club's own status is active but the cycle is
-  /// expired, treat it as expired so the UI reflects reality.
+  /// Effective display status:
+  /// - Suspended always wins (Firestore value, set by BEM)
+  /// - If active but cycle is inactive/expired → show as Expired
+  /// - Otherwise show the real status
   ClubStatus get _effectiveStatus {
+    // Suspended is set explicitly by BEM — always show it
+    if (club.status == ClubStatus.suspended) return ClubStatus.suspended;
+
+    // If active, check whether the cycle is still live
     if (club.status == ClubStatus.active) {
-      // Treat as expired if: cycle is over OR cycle is no longer active
-      final cycleInactive = cycle == null || cycle!.isExpired || !cycle!.isActive;
+      final cycleInactive =
+          cycle == null || cycle!.isExpired || !cycle!.isActive;
       if (cycleInactive) return ClubStatus.expired;
     }
+
     return club.status;
   }
 
+  /// Only allow management if truly active (cycle live + not suspended)
   bool get _canManage => _effectiveStatus == ClubStatus.active;
 
   Color _statusColor(ClubStatus s) => switch (s) {
@@ -199,6 +192,7 @@ class _BodClubCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
+        // Tappable for active only; suspended and expired are locked
         onTap: _canManage
             ? () => Navigator.push(
                   context,
@@ -240,7 +234,8 @@ class _BodClubCard extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: color.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: color.withOpacity(0.4)),
+                        border:
+                            Border.all(color: color.withOpacity(0.4)),
                       ),
                       child: Text(_statusLabel(status),
                           style: TextStyle(
@@ -249,7 +244,6 @@ class _BodClubCard extends StatelessWidget {
                               fontWeight: FontWeight.w600)),
                     ),
                     const SizedBox(height: 4),
-                    // Status-specific hint text
                     if (status == ClubStatus.pending)
                       Text('Waiting for BEM approval',
                           style: TextStyle(
@@ -261,13 +255,18 @@ class _BodClubCard extends StatelessWidget {
                               fontSize: 11,
                               color: theme.colorScheme.outline)),
                     if (status == ClubStatus.suspended)
-                      Text('Club suspended by BEM',
+                      Text('Suspended by BEM — meetings blocked',
                           style: TextStyle(
-                              fontSize: 11, color: Colors.red.shade300)),
+                              fontSize: 11,
+                              color: Colors.red.shade300)),
                   ],
                 ),
               ),
               if (_canManage) const Icon(Icons.chevron_right_rounded),
+              // Lock icon for suspended
+              if (status == ClubStatus.suspended)
+                Icon(Icons.lock_rounded,
+                    color: Colors.red.shade300, size: 18),
             ],
           ),
         ),
