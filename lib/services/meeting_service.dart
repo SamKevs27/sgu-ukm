@@ -4,6 +4,7 @@ import 'package:campus_club/models/meeting_model.dart';
 import 'package:campus_club/models/user_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:uuid/uuid.dart';
+import 'package:campus_club/models/comment_model.dart';
 
 class MeetingService {
   final _db = FirebaseFirestore.instance;
@@ -254,6 +255,95 @@ class MeetingService {
       'description': description,
       'photoUrls': photoUrls,
       'createdAt': Timestamp.fromDate(DateTime.now()),
+      'likeCount': 0,
+      'commentCount': 0,
     });
+  }
+
+    // ─── Likes ─────────────────────────────────────────────────
+
+  /// Toggle like on a feed post. Returns true if now liked, false if unliked.
+  Future<bool> toggleLike({
+    required String feedId,
+    required String userId,
+  }) async {
+    final likeRef = _db.collection('feed').doc(feedId).collection('likes').doc(userId);
+    final feedRef = _db.collection('feed').doc(feedId);
+
+    final likeDoc = await likeRef.get();
+
+    if (likeDoc.exists) {
+      // Unlike
+      await _db.runTransaction((tx) async {
+        final feedSnap = await tx.get(feedRef);
+        final data = feedSnap.data() ?? {};
+        final currentLikes = (data['likeCount'] as num?)?.toInt() ?? 0;
+        tx.delete(likeRef);
+        tx.update(feedRef, {'likeCount': (currentLikes - 1).clamp(0, 999999)});
+      });
+      return false;
+    } else {
+      // Like
+      await _db.runTransaction((tx) async {
+        final feedSnap = await tx.get(feedRef);
+        final data = feedSnap.data() ?? {};
+        final currentLikes = (data['likeCount'] as num?)?.toInt() ?? 0;
+        tx.set(likeRef, {'createdAt': Timestamp.fromDate(DateTime.now())});
+        tx.update(feedRef, {'likeCount': currentLikes + 1});
+      });
+      return true;
+    }
+  }
+
+  Stream<bool> watchIsLiked({
+    required String feedId,
+    required String userId,
+  }) {
+    return _db
+        .collection('feed')
+        .doc(feedId)
+        .collection('likes')
+        .doc(userId)
+        .snapshots()
+        .map((snap) => snap.exists);
+  }
+
+  // ─── Comments ──────────────────────────────────────────────
+
+  Future<void> addComment({
+    required String feedId,
+    required String userId,
+    required String userName,
+    String? userAvatarUrl,
+    required String text,
+  }) async {
+    final feedRef = _db.collection('feed').doc(feedId);
+    final commentRef = feedRef.collection('comments').doc();
+
+    await _db.runTransaction((tx) async {
+      final feedSnap = await tx.get(feedRef);
+      final data = feedSnap.data() ?? {};
+      final currentCount = (data['commentCount'] as num?)?.toInt() ?? 0; // ✅ FIX
+
+      tx.set(commentRef, {
+        'userId': userId,
+        'userName': userName,
+        if (userAvatarUrl != null) 'userAvatarUrl': userAvatarUrl,
+        'text': text.trim(),
+        'createdAt': Timestamp.fromDate(DateTime.now()),
+      });
+
+      tx.update(feedRef, {'commentCount': currentCount + 1});
+    });
+  }
+
+  Stream<List<CommentModel>> watchComments(String feedId) {
+    return _db
+        .collection('feed')
+        .doc(feedId)
+        .collection('comments')
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((s) => s.docs.map(CommentModel.fromFirestore).toList());
   }
 }

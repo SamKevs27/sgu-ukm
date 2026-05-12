@@ -1,4 +1,3 @@
-// lib/models/feed_model.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:equatable/equatable.dart';
 
@@ -11,6 +10,8 @@ class FeedModel extends Equatable {
   final String description;
   final List<String> photoUrls;
   final DateTime createdAt;
+  final int likeCount;
+  final int commentCount;
 
   const FeedModel({
     required this.feedId,
@@ -21,6 +22,8 @@ class FeedModel extends Equatable {
     required this.description,
     required this.photoUrls,
     required this.createdAt,
+    this.likeCount = 0,
+    this.commentCount = 0,
   });
 
   factory FeedModel.fromFirestore(DocumentSnapshot doc) {
@@ -34,6 +37,8 @@ class FeedModel extends Equatable {
       description: data['description'] ?? '',
       photoUrls: List<String>.from(data['photoUrls'] ?? []),
       createdAt: (data['createdAt'] as Timestamp).toDate(),
+      likeCount: (data['likeCount'] as num?)?.toInt() ?? 0,
+      commentCount: (data['commentCount'] as num?)?.toInt() ?? 0,
     );
   }
 
@@ -45,7 +50,26 @@ class FeedModel extends Equatable {
         'description': description,
         'photoUrls': photoUrls,
         'createdAt': Timestamp.fromDate(createdAt),
+        'likeCount': likeCount,
+        'commentCount': commentCount,
       };
+
+  FeedModel copyWith({
+    int? likeCount,
+    int? commentCount,
+  }) =>
+      FeedModel(
+        feedId: feedId,
+        clubId: clubId,
+        clubName: clubName,
+        clubLogoUrl: clubLogoUrl,
+        meetingId: meetingId,
+        description: description,
+        photoUrls: photoUrls,
+        createdAt: createdAt,
+        likeCount: likeCount ?? this.likeCount,
+        commentCount: commentCount ?? this.commentCount,
+      );
 
   @override
   List<Object?> get props => [feedId, clubId, meetingId];

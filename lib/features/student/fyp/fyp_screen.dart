@@ -1,9 +1,12 @@
-// lib/features/student/fyp/fyp_screen.dart
 import 'package:campus_club/models/feed_model.dart';
+import 'package:campus_club/providers/auth_provider.dart';
 import 'package:campus_club/providers/meeting_provider.dart';
+import 'package:campus_club/services/meeting_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+
+import 'comment_bottom_sheet.dart';
 
 class FypScreen extends ConsumerWidget {
   const FypScreen({super.key});
@@ -65,19 +68,38 @@ class FypScreen extends ConsumerWidget {
   }
 }
 
-class _FeedCard extends StatefulWidget {
+class _FeedCard extends ConsumerStatefulWidget {
   final FeedModel item;
   const _FeedCard({required this.item});
 
   @override
-  State<_FeedCard> createState() => _FeedCardState();
+  ConsumerState<_FeedCard> createState() => _FeedCardState();
 }
 
-class _FeedCardState extends State<_FeedCard> {
+class _FeedCardState extends ConsumerState<_FeedCard>
+    with SingleTickerProviderStateMixin {
   bool _expanded = false;
+  late final AnimationController _likeAnimController;
 
   static const _primaryBlue = Color(0xFF2F80FF);
   static const _textNavy = Color(0xFF101C3D);
+  static const _mutedBlue = Color(0xFF8093C6);
+  static const _likeRed = Color(0xFFFF3040);
+
+  @override
+  void initState() {
+    super.initState();
+    _likeAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+  }
+
+  @override
+  void dispose() {
+    _likeAnimController.dispose();
+    super.dispose();
+  }
 
   String _timeAgo(DateTime date) {
     final diff = DateTime.now().difference(date);
@@ -86,6 +108,35 @@ class _FeedCardState extends State<_FeedCard> {
     if (diff.inDays < 1) return '${diff.inHours}h';
     if (diff.inDays < 7) return '${diff.inDays}d';
     return DateFormat('dd MMM').format(date);
+  }
+
+  Future<void> _toggleLike(String feedId) async {
+    final user = ref.read(currentUserProvider).valueOrNull;
+    if (user == null) return;
+
+    final isLiked = await ref.read(meetingServiceProvider).toggleLike(
+          feedId: feedId,
+          userId: user.uid,
+        );
+
+    if (isLiked) {
+      _likeAnimController
+        ..forward(from: 0)
+        ..addStatusListener((status) {
+          if (status == AnimationStatus.completed) {
+            _likeAnimController.reverse();
+          }
+        });
+    }
+  }
+
+  void _openComments(String feedId) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => CommentBottomSheet(feedId: feedId),
+    );
   }
 
   @override
@@ -177,7 +228,11 @@ class _FeedCardState extends State<_FeedCard> {
                       _PhotoCarousel(urls: item.photoUrls),
                     ],
                     const SizedBox(height: 14),
-                    const _FeedActions(),
+                    _FeedActions(
+                      item: item,
+                      onLike: () => _toggleLike(item.feedId),
+                      onComment: () => _openComments(item.feedId),
+                    ),
                   ],
                 ),
               ),
@@ -302,66 +357,115 @@ class _FeedHeader extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 8),
-        // const Icon(Icons.auto_awesome_rounded, color: _primaryBlue, size: 21), // gtw ini buat apa lol
       ],
     );
   }
 }
 
-class _FeedActions extends StatelessWidget {
-  const _FeedActions();
+class _FeedActions extends ConsumerWidget {
+  final FeedModel item;
+  final VoidCallback onLike;
+  final VoidCallback onComment;
+
+  const _FeedActions({
+    required this.item,
+    required this.onLike,
+    required this.onComment,
+  });
 
   static const _dividerBlue = Color(0xFFE9EEF8);
+  static const _mutedBlue = Color(0xFF8093C6);
+  static const _primaryBlue = Color(0xFF2F80FF);
+  static const _likeRed = Color(0xFFFF3040);
 
   @override
-  Widget build(BuildContext context) {
-    return const DecoratedBox(
-      decoration: BoxDecoration(
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isLikedAsync = ref.watch(feedIsLikedProvider(item.feedId));
+
+    return DecoratedBox(
+      decoration: const BoxDecoration(
         border: Border(top: BorderSide(color: _dividerBlue)),
       ),
-      // child: Padding(
-      //   padding: EdgeInsets.only(top: 12),
-      //   child: Row(
-      //     children: [
-      //       _FeedActionIcon(icon: Icons.favorite_border_rounded),
-      //       SizedBox(width: 26),
-      //       _FeedActionIcon(icon: Icons.mode_comment_outlined, label: '0'),
-      //       SizedBox(width: 26),
-      //       _FeedActionIcon(icon: Icons.repeat_rounded),
-      //       SizedBox(width: 26),
-      //       _FeedActionIcon(icon: Icons.send_outlined),
-      //     ],
-      //   ),
-      // ),
+      child: Padding(
+        padding: const EdgeInsets.only(top: 12),
+        child: Row(
+          children: [
+            // Like
+            _FeedActionButton(
+              icon: isLikedAsync.when(
+                data: (liked) => liked
+                    ? Icons.favorite_rounded
+                    : Icons.favorite_border_rounded,
+                loading: () => Icons.favorite_border_rounded,
+                error: (_, __) => Icons.favorite_border_rounded,
+              ),
+              color: isLikedAsync.when(
+                data: (liked) => liked ? _likeRed : _mutedBlue,
+                loading: () => _mutedBlue,
+                error: (_, __) => _mutedBlue,
+              ),
+              label: _formatCount(item.likeCount),
+              onTap: onLike,
+            ),
+            const SizedBox(width: 26),
+            // Comment
+            _FeedActionButton(
+              icon: Icons.mode_comment_outlined,
+              color: _mutedBlue,
+              label: _formatCount(item.commentCount),
+              onTap: onComment,
+            ),
+          ],
+        ),
+      ),
     );
+  }
+
+  String _formatCount(int count) {
+    if (count == 0) return '';
+    if (count < 1000) return count.toString();
+    if (count < 1000000) return '${(count / 1000).toStringAsFixed(1)}k';
+    return '${(count / 1000000).toStringAsFixed(1)}M';
   }
 }
 
-class _FeedActionIcon extends StatelessWidget {
+class _FeedActionButton extends StatelessWidget {
   final IconData icon;
+  final Color color;
   final String? label;
+  final VoidCallback onTap;
 
-  const _FeedActionIcon({required this.icon, this.label});
-
-  static const _mutedBlue = Color(0xFF8093C6);
+  const _FeedActionButton({
+    required this.icon,
+    required this.color,
+    this.label,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 24, color: _mutedBlue),
-        if (label != null) ...[
-          const SizedBox(width: 5),
-          Text(
-            label!,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: _mutedBlue,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ],
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 24, color: color),
+            if (label != null && label!.isNotEmpty) ...[
+              const SizedBox(width: 5),
+              Text(
+                label!,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }

@@ -3,6 +3,8 @@ import 'package:campus_club/models/feed_model.dart';
 import 'package:campus_club/models/meeting_model.dart';
 import 'package:campus_club/services/meeting_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:campus_club/models/comment_model.dart';
+import 'package:campus_club/providers/auth_provider.dart';
 
 final meetingServiceProvider =
     Provider<MeetingService>((ref) => MeetingService());
@@ -22,4 +24,17 @@ final meetingAttendanceProvider =
 
 final feedProvider = StreamProvider<List<FeedModel>>((ref) {
   return ref.watch(meetingServiceProvider).watchFeed();
+});
+
+final feedIsLikedProvider = StreamProvider.family<bool, String>((ref, feedId) {
+  final user = ref.watch(currentUserProvider).valueOrNull;
+  if (user == null) return Stream.value(false);
+  return ref.watch(meetingServiceProvider).watchIsLiked(
+        feedId: feedId,
+        userId: user.uid,
+      );
+});
+
+final feedCommentsProvider = StreamProvider.family<List<CommentModel>, String>((ref, feedId) {
+  return ref.watch(meetingServiceProvider).watchComments(feedId);
 });
