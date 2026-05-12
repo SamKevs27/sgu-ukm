@@ -69,7 +69,7 @@ class _GlassCard extends StatelessWidget {
   }
 }
 
-// ── Chip pill (mirrors BEM _MiniStat) ─────────────────────────────────────────
+// ── Chip pill ─────────────────────────────────────────────────────────────────
 class _Pill extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -121,6 +121,7 @@ class _MeetingDetailScreenState extends ConsumerState<MeetingDetailScreen> {
   final _descController = TextEditingController();
   bool _uploadingPhoto = false;
   bool _savingDesc = false;
+  bool _publishing = false;
   final Set<String> _attendanceToggleBusy = {};
 
   @override
@@ -176,17 +177,124 @@ class _MeetingDetailScreenState extends ConsumerState<MeetingDetailScreen> {
               children: [
                 Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
                 SizedBox(width: 8),
-                Text('Description saved!',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                Text('Notes saved!',
+                    style: TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.w600)),
               ],
             ),
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
       }
     } finally {
       if (mounted) setState(() => _savingDesc = false);
+    }
+  }
+
+  Future<void> _publishToFyp() async {
+    final description = _descController.text.trim();
+    if (description.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: _red,
+          content: const Row(
+            children: [
+              Icon(Icons.warning_rounded, color: Colors.white, size: 18),
+              SizedBox(width: 8),
+              Text('Add a description before publishing.',
+                  style: TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.w600)),
+            ],
+          ),
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+      return;
+    }
+
+    // Confirm dialog
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: const Text(
+          'Publish to FYP?',
+          style: TextStyle(
+              fontWeight: FontWeight.w800, fontSize: 16, color: _textNavy),
+        ),
+        content: const Text(
+          'This will post the meeting highlights to everyone\'s feed.',
+          style: TextStyle(color: _mutedBlue, fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel',
+                style: TextStyle(color: _mutedBlue, fontWeight: FontWeight.w600)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: _primaryBlue),
+            child: const Text('Publish',
+                style: TextStyle(fontWeight: FontWeight.w800)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    setState(() => _publishing = true);
+    try {
+      await ref.read(meetingServiceProvider).publishToFeed(
+            clubId: widget.club.clubId,
+            clubName: widget.club.name,
+            meetingId: widget.meeting.meetingId,
+            description: description,
+            photoUrls: widget.meeting.photoUrls,
+            clubLogoUrl: widget.club.logoUrl,
+          );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: _green,
+            content: const Row(
+              children: [
+                Icon(Icons.auto_awesome_rounded,
+                    color: Colors.white, size: 18),
+                SizedBox(width: 8),
+                Text('Published to FYP!',
+                    style: TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.w600)),
+              ],
+            ),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: _red,
+            content: Text(
+              e.toString().replaceAll('Exception: ', ''),
+              style: const TextStyle(color: Colors.white),
+            ),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _publishing = false);
     }
   }
 
@@ -259,7 +367,7 @@ class _MeetingDetailScreenState extends ConsumerState<MeetingDetailScreen> {
         body: TabBarView(
           children: [
             // ────────────────────────────────────────────────────────────────
-            // QR Tab
+            // QR Tab  (notes removed — moved to Photos tab)
             // ────────────────────────────────────────────────────────────────
             SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
@@ -271,7 +379,8 @@ class _MeetingDetailScreenState extends ConsumerState<MeetingDetailScreen> {
                     child: widget.meeting.isQrActive
                         ? _Pill(
                             icon: Icons.timer_rounded,
-                            label: 'Expires ${fmt.format(widget.meeting.qrExpiresAt!)}',
+                            label:
+                                'Expires ${fmt.format(widget.meeting.qrExpiresAt!)}',
                             color: _green,
                           )
                         : const _Pill(
@@ -309,101 +418,6 @@ class _MeetingDetailScreenState extends ConsumerState<MeetingDetailScreen> {
                             color: _textNavy,
                           ),
                         ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 28),
-
-                  // Description card
-                  _GlassCard(
-                    child: Padding(
-                      padding: const EdgeInsets.all(18),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Row(
-                            children: [
-                              Icon(Icons.notes_rounded,
-                                  size: 16, color: _primaryBlue),
-                              SizedBox(width: 6),
-                              Text(
-                                'Meeting Notes',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 13,
-                                  color: _textNavy,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          TextField(
-                            controller: _descController,
-                            maxLines: 4,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: _textNavy,
-                            ),
-                            decoration: InputDecoration(
-                              hintText: 'Add notes or agenda for this meeting…',
-                              hintStyle: const TextStyle(
-                                color: _mutedBlue,
-                                fontSize: 13,
-                              ),
-                              filled: true,
-                              fillColor: _softBlue,
-                              contentPadding: const EdgeInsets.all(14),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(
-                                    color: _primaryBlue.withValues(alpha: 0.2)),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(
-                                    color: _dividerBlue, width: 1),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(
-                                    color: _primaryBlue, width: 1.5),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          SizedBox(
-                            width: double.infinity,
-                            child: TextButton.icon(
-                              style: TextButton.styleFrom(
-                                backgroundColor: _primaryBlue,
-                                foregroundColor: Colors.white,
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 14),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              onPressed: _savingDesc ? null : _saveDescription,
-                              icon: _savingDesc
-                                  ? const SizedBox(
-                                      width: 16,
-                                      height: 16,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white,
-                                      ),
-                                    )
-                                  : const Icon(Icons.save_rounded, size: 18),
-                              label: const Text(
-                                'Save Notes',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
                       ),
                     ),
                   ),
@@ -475,7 +489,8 @@ class _MeetingDetailScreenState extends ConsumerState<MeetingDetailScreen> {
                               child: Text('No members yet.',
                                   style: TextStyle(color: _mutedBlue)))
                           : ListView.separated(
-                              padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+                              padding:
+                                  const EdgeInsets.fromLTRB(20, 16, 20, 32),
                               itemCount: members.length,
                               separatorBuilder: (_, __) =>
                                   const SizedBox(height: 10),
@@ -495,7 +510,6 @@ class _MeetingDetailScreenState extends ConsumerState<MeetingDetailScreen> {
                                         horizontal: 14, vertical: 12),
                                     child: Row(
                                       children: [
-                                        // Avatar
                                         CircleAvatar(
                                           radius: 20,
                                           backgroundColor: present
@@ -512,7 +526,6 @@ class _MeetingDetailScreenState extends ConsumerState<MeetingDetailScreen> {
                                           ),
                                         ),
                                         const SizedBox(width: 12),
-                                        // Name + NIM + method pill
                                         Expanded(
                                           child: Column(
                                             crossAxisAlignment:
@@ -538,15 +551,18 @@ class _MeetingDetailScreenState extends ConsumerState<MeetingDetailScreen> {
                                                     const SizedBox(width: 6),
                                                     _Pill(
                                                       icon: record?.method ==
-                                                              AttendanceMethod.qr
+                                                              AttendanceMethod
+                                                                  .qr
                                                           ? Icons.qr_code_rounded
                                                           : Icons.edit_rounded,
                                                       label: record?.method ==
-                                                              AttendanceMethod.qr
+                                                              AttendanceMethod
+                                                                  .qr
                                                           ? 'QR'
                                                           : 'Manual',
                                                       color: record?.method ==
-                                                              AttendanceMethod.qr
+                                                              AttendanceMethod
+                                                                  .qr
                                                           ? _primaryBlue
                                                           : const Color(
                                                               0xFFF59E0B),
@@ -557,7 +573,6 @@ class _MeetingDetailScreenState extends ConsumerState<MeetingDetailScreen> {
                                             ],
                                           ),
                                         ),
-                                        // Toggle
                                         isBusy
                                             ? const SizedBox(
                                                 width: 24,
@@ -607,7 +622,8 @@ class _MeetingDetailScreenState extends ConsumerState<MeetingDetailScreen> {
                                                             clubId: widget
                                                                 .club.clubId,
                                                             cycleId: widget
-                                                                .meeting.cycleId,
+                                                                .meeting
+                                                                .cycleId,
                                                             meetingId: widget
                                                                 .meeting
                                                                 .meetingId,
@@ -634,8 +650,11 @@ class _MeetingDetailScreenState extends ConsumerState<MeetingDetailScreen> {
                                                         .showSnackBar(
                                                       SnackBar(
                                                         content: Text(
-                                                          e.toString().replaceAll(
-                                                              'Exception: ', ''),
+                                                          e
+                                                              .toString()
+                                                              .replaceAll(
+                                                                  'Exception: ',
+                                                                  ''),
                                                         ),
                                                       ),
                                                     );
@@ -662,16 +681,16 @@ class _MeetingDetailScreenState extends ConsumerState<MeetingDetailScreen> {
             ),
 
             // ────────────────────────────────────────────────────────────────
-            // Photos Tab
+            // Photos Tab  (notes + publish moved here)
             // ────────────────────────────────────────────────────────────────
             Column(
               children: [
+                // Photo grid / empty state
                 Expanded(
                   child: widget.meeting.photoUrls.isEmpty
                       ? Center(
                           child: _GlassCard(
-                            margin:
-                                const EdgeInsets.symmetric(horizontal: 40),
+                            margin: const EdgeInsets.symmetric(horizontal: 40),
                             child: const Padding(
                               padding: EdgeInsets.symmetric(
                                   vertical: 40, horizontal: 24),
@@ -721,36 +740,168 @@ class _MeetingDetailScreenState extends ConsumerState<MeetingDetailScreen> {
                           ),
                         ),
                 ),
-                // Add Photo button
+
+                // ── Bottom action panel ──────────────────────────────────────
                 Container(
                   color: Colors.white,
-                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: TextButton.icon(
-                      style: TextButton.styleFrom(
-                        backgroundColor: _primaryBlue,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                  child: SafeArea(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Meeting Notes field
+                        const Row(
+                          children: [
+                            Icon(Icons.notes_rounded,
+                                size: 15, color: _primaryBlue),
+                            SizedBox(width: 6),
+                            Text(
+                              'Meeting Notes',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 13,
+                                color: _textNavy,
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                      onPressed: _uploadingPhoto ? null : _pickAndUploadPhoto,
-                      icon: _uploadingPhoto
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2, color: Colors.white),
-                            )
-                          : const Icon(Icons.add_photo_alternate_rounded,
-                              size: 20),
-                      label: const Text(
-                        'Add Photo',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 14),
-                      ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: _descController,
+                          maxLines: 3,
+                          style: const TextStyle(
+                              fontSize: 14, color: _textNavy),
+                          decoration: InputDecoration(
+                            hintText:
+                                'Add notes or description for this meeting…',
+                            hintStyle: const TextStyle(
+                                color: _mutedBlue, fontSize: 13),
+                            filled: true,
+                            fillColor: _softBlue,
+                            contentPadding: const EdgeInsets.all(12),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(
+                                  color:
+                                      _primaryBlue.withValues(alpha: 0.2)),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                  color: _dividerBlue, width: 1),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                  color: _primaryBlue, width: 1.5),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Row: Add Photo + Save Notes
+                        Row(
+                          children: [
+                            // Add Photo
+                            Expanded(
+                              child: TextButton.icon(
+                                style: TextButton.styleFrom(
+                                  backgroundColor: _softBlue,
+                                  foregroundColor: _primaryBlue,
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 13),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                onPressed: _uploadingPhoto
+                                    ? null
+                                    : _pickAndUploadPhoto,
+                                icon: _uploadingPhoto
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: _primaryBlue),
+                                      )
+                                    : const Icon(
+                                        Icons.add_photo_alternate_rounded,
+                                        size: 18),
+                                label: const Text(
+                                  'Add Photo',
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 13),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            // Save Notes
+                            Expanded(
+                              child: TextButton.icon(
+                                style: TextButton.styleFrom(
+                                  backgroundColor: _softBlue,
+                                  foregroundColor: _primaryBlue,
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 13),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                onPressed:
+                                    _savingDesc ? null : _saveDescription,
+                                icon: _savingDesc
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: _primaryBlue),
+                                      )
+                                    : const Icon(Icons.save_rounded,
+                                        size: 18),
+                                label: const Text(
+                                  'Save Notes',
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 13),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+
+                        // Publish to FYP — full-width primary button
+                        TextButton.icon(
+                          style: TextButton.styleFrom(
+                            backgroundColor: _primaryBlue,
+                            foregroundColor: Colors.white,
+                            padding:
+                                const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          onPressed: _publishing ? null : _publishToFyp,
+                          icon: _publishing
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white),
+                                )
+                              : const Icon(
+                                  Icons.auto_awesome_rounded, size: 18),
+                          label: const Text(
+                            'Publish to FYP',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w700, fontSize: 14),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -763,7 +914,7 @@ class _MeetingDetailScreenState extends ConsumerState<MeetingDetailScreen> {
   }
 }
 
-// ── Photo empty icon helper (const-safe) ─────────────────────────────────────
+// ── Photo empty icon helper ───────────────────────────────────────────────────
 class _PhotoEmptyIcon extends StatelessWidget {
   const _PhotoEmptyIcon();
 
@@ -781,7 +932,7 @@ class _PhotoEmptyIcon extends StatelessWidget {
   }
 }
 
-// ── Stat Card (attendance summary) ───────────────────────────────────────────
+// ── Stat Card ─────────────────────────────────────────────────────────────────
 class _StatCard extends StatelessWidget {
   final String label;
   final int value;
