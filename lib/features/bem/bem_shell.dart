@@ -19,11 +19,11 @@ class BemShell extends ConsumerStatefulWidget {
 class _BemShellState extends ConsumerState<BemShell> {
   int _currentIndex = 0;
 
-  final _screens = const [
-    BemDashboardScreen(),
-    BemClubsScreen(),
-    BemRequestsScreen(),
-    BemCyclesScreen(),
+  final List<Widget> _screens = [
+    const BemDashboardScreen(),
+    const BemClubsScreen(),
+    const BemRequestsScreen(),
+    const BemCyclesScreen(),
   ];
 
   void _showProfile(BuildContext context) {
@@ -51,7 +51,7 @@ class _BemShellState extends ConsumerState<BemShell> {
       ),
       body: IndexedStack(
         index: _currentIndex,
-        children: _screens,
+        children: _screens as List<Widget>,
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,

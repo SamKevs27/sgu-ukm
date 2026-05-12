@@ -1,5 +1,4 @@
 // lib/features/student/fyp/fyp_screen.dart
-// lib/features/student/fyp/fyp_screen.dart
 import 'package:campus_club/models/feed_model.dart';
 import 'package:campus_club/providers/meeting_provider.dart';
 import 'package:flutter/material.dart';
