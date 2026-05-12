@@ -302,7 +302,7 @@ class _FeedHeader extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 8),
-        const Icon(Icons.auto_awesome_rounded, color: _primaryBlue, size: 21),
+        // const Icon(Icons.auto_awesome_rounded, color: _primaryBlue, size: 21), // gtw ini buat apa lol
       ],
     );
   }
@@ -319,20 +319,20 @@ class _FeedActions extends StatelessWidget {
       decoration: BoxDecoration(
         border: Border(top: BorderSide(color: _dividerBlue)),
       ),
-      child: Padding(
-        padding: EdgeInsets.only(top: 12),
-        child: Row(
-          children: [
-            _FeedActionIcon(icon: Icons.favorite_border_rounded),
-            SizedBox(width: 26),
-            _FeedActionIcon(icon: Icons.mode_comment_outlined, label: '0'),
-            SizedBox(width: 26),
-            _FeedActionIcon(icon: Icons.repeat_rounded),
-            SizedBox(width: 26),
-            _FeedActionIcon(icon: Icons.send_outlined),
-          ],
-        ),
-      ),
+      // child: Padding(
+      //   padding: EdgeInsets.only(top: 12),
+      //   child: Row(
+      //     children: [
+      //       _FeedActionIcon(icon: Icons.favorite_border_rounded),
+      //       SizedBox(width: 26),
+      //       _FeedActionIcon(icon: Icons.mode_comment_outlined, label: '0'),
+      //       SizedBox(width: 26),
+      //       _FeedActionIcon(icon: Icons.repeat_rounded),
+      //       SizedBox(width: 26),
+      //       _FeedActionIcon(icon: Icons.send_outlined),
+      //     ],
+      //   ),
+      // ),
     );
   }
 }

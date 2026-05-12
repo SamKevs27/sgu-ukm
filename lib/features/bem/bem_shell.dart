@@ -41,13 +41,17 @@ class _BemShellState extends ConsumerState<BemShell> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('BEM Dashboard'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.account_circle_rounded),
-            onPressed: () => _showProfile(context),
-          ),
-        ],
+        titleSpacing: 0, // Remove default title padding so row starts at left edge
+        title: Row(
+          children: [
+            IconButton(
+              icon: const Icon(Icons.account_circle_rounded),
+              onPressed: () => _showProfile(context),
+            ),
+            const Text('Hello, BEM'),
+          ],
+        ),
+        actions: const [], // Empty since icon moved to title
       ),
       extendBody: true,
       body: IndexedStack(
