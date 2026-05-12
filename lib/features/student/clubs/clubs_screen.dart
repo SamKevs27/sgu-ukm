@@ -19,7 +19,8 @@ class _ClubsScreenState extends ConsumerState<ClubsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final clubsAsync = ref.watch(activeClubsProvider);
+    // Uses cycle-aware provider, then filters out anything not truly active
+    final clubsAsync = ref.watch(activeClubsWithCycleStatusProvider);
     final user = ref.watch(currentUserProvider).valueOrNull;
 
     return Scaffold(
@@ -44,9 +45,15 @@ class _ClubsScreenState extends ConsumerState<ClubsScreen> {
                   const Center(child: CircularProgressIndicator()),
               error: (e, _) => Center(child: Text('Error: $e')),
               data: (clubs) {
+                // Filter out clubs whose cycle is inactive (marked as expired
+                // by activeClubsWithCycleStatusProvider)
+                final activeCycleClubs = clubs
+                    .where((c) => c.status == ClubStatus.active)
+                    .toList();
+
                 final filtered = _search.isEmpty
-                    ? clubs
-                    : clubs
+                    ? activeCycleClubs
+                    : activeCycleClubs
                         .where((c) =>
                             c.name.toLowerCase().contains(_search) ||
                             c.description.toLowerCase().contains(_search))
@@ -112,7 +119,6 @@ class _ClubCard extends ConsumerWidget {
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              // Logo
               CircleAvatar(
                 radius: 28,
                 backgroundColor: theme.colorScheme.primaryContainer,
@@ -131,7 +137,6 @@ class _ClubCard extends ConsumerWidget {
                     : null,
               ),
               const SizedBox(width: 16),
-              // Info
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

@@ -13,7 +13,7 @@ class BemClubsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final clubsAsync = ref.watch(allClubsProvider);
+    final clubsAsync = ref.watch(allClubsWithCycleStatusProvider);
 
     return Scaffold(
       body: clubsAsync.when(
@@ -24,7 +24,7 @@ class BemClubsScreen extends ConsumerWidget {
             return const Center(child: Text('No clubs yet.'));
           }
           return RefreshIndicator(
-            onRefresh: () async => ref.invalidate(allClubsProvider),
+            onRefresh: () async => ref.invalidate(allClubsWithCycleStatusProvider),
             child: ListView.builder(
               padding: const EdgeInsets.all(16),
               itemCount: clubs.length,
