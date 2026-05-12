@@ -4,10 +4,10 @@ import 'package:campus_club/features/bem/cycles/bem_cycles_screen.dart';
 import 'package:campus_club/features/bem/dashboard/bem_dashboard_screen.dart';
 import 'package:campus_club/features/bem/requests/bem_requests_screen.dart';
 import 'package:campus_club/providers/auth_provider.dart';
+import 'package:campus_club/shared/widgets/liquid_glass_nav_bar.dart';
 import 'package:campus_club/shared/widgets/profile_popup.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 class BemShell extends ConsumerStatefulWidget {
   const BemShell({super.key});
@@ -49,11 +49,12 @@ class _BemShellState extends ConsumerState<BemShell> {
           ),
         ],
       ),
+      extendBody: true,
       body: IndexedStack(
         index: _currentIndex,
-        children: _screens as List<Widget>,
+        children: _screens,
       ),
-      bottomNavigationBar: NavigationBar(
+      bottomNavigationBar: LiquidGlassNavBar(
         selectedIndex: _currentIndex,
         onDestinationSelected: (i) => setState(() => _currentIndex = i),
         destinations: const [

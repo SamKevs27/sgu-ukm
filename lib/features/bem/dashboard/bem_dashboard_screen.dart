@@ -1,6 +1,5 @@
 // lib/features/bem/dashboard/bem_dashboard_screen.dart
 import 'package:campus_club/models/club_model.dart';
-import 'package:campus_club/providers/bem_provider.dart';
 import 'package:campus_club/providers/club_provider.dart';
 import 'package:campus_club/providers/cycle_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -9,25 +8,23 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 // ── Per-club stats provider ───────────────────────────────────────────────────
-
-final _clubStatsProvider =
-    FutureProvider.family<_ClubStats, String>((ref, clubId) async {
+final _clubStatsProvider = FutureProvider.family<_ClubStats, String>((
+  ref,
+  clubId,
+) async {
   final db = FirebaseFirestore.instance;
-
   final meetingsSnap = await db
       .collection('clubs')
       .doc(clubId)
       .collection('meetings')
       .count()
       .get();
-
   final membersSnap = await db
       .collection('clubs')
       .doc(clubId)
       .collection('members')
       .count()
       .get();
-
   return _ClubStats(
     meetingCount: meetingsSnap.count ?? 0,
     memberCount: membersSnap.count ?? 0,
@@ -40,324 +37,504 @@ class _ClubStats {
   const _ClubStats({required this.meetingCount, required this.memberCount});
 }
 
-// ── Screen ────────────────────────────────────────────────────────────────────
+const _screenBackground = Color(0xFFFBFDFF);
+const _softBlue = Color(0xFFEAF4FF);
+const _primaryBlue = Color(0xFF2F80FF);
+const _textNavy = Color(0xFF101C3D);
+const _mutedBlue = Color(0xFF8093C6);
+const _dividerBlue = Color(0xFFE9EEF8);
 
+// ── Screen ────────────────────────────────────────────────────────────────────
 class BemDashboardScreen extends ConsumerWidget {
   const BemDashboardScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Use cycle-aware provider so inactive-cycle clubs are marked expired
     final allClubsAsync = ref.watch(allClubsWithCycleStatusProvider);
     final activeCycleAsync = ref.watch(activeCycleProvider);
-    final theme = Theme.of(context);
     final fmt = DateFormat('dd MMM yyyy');
 
-    return allClubsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Error: $e')),
-      data: (clubs) {
-        final activeClubs =
-            clubs.where((c) => c.status == ClubStatus.active).toList();
-        final pendingClubs =
-            clubs.where((c) => c.status == ClubStatus.pending).toList();
-        final suspendedClubs =
-            clubs.where((c) => c.status == ClubStatus.suspended).toList();
-        final expiredClubs =
-            clubs.where((c) => c.status == ClubStatus.expired).toList();
-
-        return RefreshIndicator(
-          onRefresh: () async =>
-              ref.invalidate(allClubsWithCycleStatusProvider),
-          child: ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              // ── Active cycle banner ──
-              activeCycleAsync.when(
-                loading: () => const SizedBox.shrink(),
-                error: (_, __) => const SizedBox.shrink(),
-                data: (cycle) => cycle == null
-                    ? Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.errorContainer,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.warning_rounded,
-                                color: theme.colorScheme.onErrorContainer),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                'No active cycle. Create one in the Cycles tab.',
-                                style: TextStyle(
-                                    color: theme.colorScheme.onErrorContainer),
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    : Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.primaryContainer,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.calendar_month_rounded,
-                                color: theme.colorScheme.primary),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text('Current Cycle',
-                                      style: TextStyle(
-                                          fontSize: 11,
-                                          color: theme.colorScheme.primary,
-                                          fontWeight: FontWeight.w600)),
-                                  Text(cycle.name,
-                                      style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: theme.colorScheme
-                                              .onPrimaryContainer)),
-                                  Text(
-                                    '${fmt.format(cycle.startDate)} – ${fmt.format(cycle.endDate)}',
-                                    style: TextStyle(
-                                        fontSize: 12,
-                                        color: theme.colorScheme.primary),
+    return ColoredBox(
+      color: _screenBackground,
+      child: allClubsAsync.when(
+        loading: () =>
+            const Center(child: CircularProgressIndicator(color: _primaryBlue)),
+        error: (e, _) => Center(
+          child: Text('Error: $e', style: const TextStyle(color: Colors.red)),
+        ),
+        data: (clubs) {
+          final activeClubs = clubs
+              .where((c) => c.status == ClubStatus.active)
+              .toList();
+          final pendingClubs = clubs
+              .where((c) => c.status == ClubStatus.pending)
+              .toList();
+          final suspendedClubs = clubs
+              .where((c) => c.status == ClubStatus.suspended)
+              .toList();
+          return RefreshIndicator(
+            color: _primaryBlue,
+            onRefresh: () async =>
+                ref.invalidate(allClubsWithCycleStatusProvider),
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 112),
+              children: [
+                // ── Active cycle banner ──
+                activeCycleAsync.when(
+                  loading: () => const SizedBox.shrink(),
+                  error: (_, __) => const SizedBox.shrink(),
+                  data: (cycle) => cycle == null
+                      ? _GlassCard(
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.red.withValues(alpha: 0.10),
+                              Colors.orange.withValues(alpha: 0.05),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderColor: Colors.red.withValues(alpha: 0.3),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red.withValues(alpha: 0.10),
+                                    borderRadius: BorderRadius.circular(14),
                                   ),
-                                ],
-                              ),
+                                  child: const Icon(
+                                    Icons.warning_rounded,
+                                    color: Colors.red,
+                                    size: 22,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                const Expanded(
+                                  child: Text(
+                                    'No active cycle. Create one in the Cycles tab.',
+                                    style: TextStyle(
+                                      color: Colors.red,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
+                          ),
+                        )
+                      : _GlassCard(
+                          gradient: LinearGradient(
+                            colors: [
+                              _primaryBlue.withValues(alpha: 0.11),
+                              _softBlue,
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderColor: _primaryBlue.withValues(alpha: 0.2),
+                          child: Padding(
+                            padding: const EdgeInsets.all(18),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.72),
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                  child: const Icon(
+                                    Icons.calendar_month_rounded,
+                                    color: _primaryBlue,
+                                    size: 24,
+                                  ),
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        'Current Cycle',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: _mutedBlue,
+                                          fontWeight: FontWeight.w600,
+                                          letterSpacing: 0,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        cycle.name,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                          color: _textNavy,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        '${fmt.format(cycle.startDate)} – ${fmt.format(cycle.endDate)}',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: _mutedBlue,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
-                      ),
-              ),
+                ),
 
-              const SizedBox(height: 20),
-
-              // ── Summary stat cards ──
-              Text('Overview',
-                  style: theme.textTheme.titleMedium
-                      ?.copyWith(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  _StatCard(
-                    label: 'Total Clubs',
-                    value: clubs.length,
-                    icon: Icons.groups_rounded,
-                    color: theme.colorScheme.primary,
-                  ),
-                  const SizedBox(width: 10),
-                  _StatCard(
-                    label: 'Active',
-                    value: activeClubs.length,
-                    icon: Icons.check_circle_rounded,
-                    color: Colors.green,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  _StatCard(
-                    label: 'Pending',
-                    value: pendingClubs.length,
-                    icon: Icons.hourglass_top_rounded,
-                    color: Colors.orange,
-                  ),
-                  const SizedBox(width: 10),
-                  _StatCard(
-                    label: 'Suspended',
-                    value: suspendedClubs.length,
-                    icon: Icons.block_rounded,
-                    color: Colors.red,
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 24),
-
-              // ── Active clubs list ──
-              Text('Active Clubs',
-                  style: theme.textTheme.titleMedium
-                      ?.copyWith(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 4),
-              Text('Meetings and members this cycle',
-                  style: TextStyle(
-                      fontSize: 12, color: theme.colorScheme.outline)),
-              const SizedBox(height: 12),
-
-              if (activeClubs.isEmpty)
-                Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Text('No active clubs yet.',
-                        style:
-                            TextStyle(color: theme.colorScheme.outline)),
-                  ),
-                )
-              else
-                ...activeClubs
-                    .map((club) => _ClubDashboardCard(club: club)),
-
-              // ── Pending approval section ──
-              if (pendingClubs.isNotEmpty) ...[
                 const SizedBox(height: 24),
+
+                // ── Summary stat cards ──
+                const Text(
+                  'Overview',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: _textNavy,
+                  ),
+                ),
+                const SizedBox(height: 14),
                 Row(
                   children: [
-                    Text('Pending Approval',
-                        style: theme.textTheme.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.bold)),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text('${pendingClubs.length}',
-                          style: const TextStyle(
-                              color: Colors.orange,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12)),
+                    _StatCard(
+                      label: 'Total Clubs',
+                      value: clubs.length,
+                      icon: Icons.groups_rounded,
+                      color: _primaryBlue,
+                    ),
+                    const SizedBox(width: 12),
+                    _StatCard(
+                      label: 'Active',
+                      value: activeClubs.length,
+                      icon: Icons.check_circle_rounded,
+                      color: const Color(0xFF10B981),
                     ),
                   ],
                 ),
                 const SizedBox(height: 12),
-                ...pendingClubs
-                    .map((club) => _PendingClubTile(club: club)),
-              ],
+                Row(
+                  children: [
+                    _StatCard(
+                      label: 'Pending',
+                      value: pendingClubs.length,
+                      icon: Icons.hourglass_top_rounded,
+                      color: const Color(0xFFF59E0B),
+                    ),
+                    const SizedBox(width: 12),
+                    _StatCard(
+                      label: 'Suspended',
+                      value: suspendedClubs.length,
+                      icon: Icons.block_rounded,
+                      color: const Color(0xFFEF4444),
+                    ),
+                  ],
+                ),
 
-              const SizedBox(height: 32),
-            ],
-          ),
-        );
-      },
+                const SizedBox(height: 28),
+
+                // ── Active clubs list ──
+                const Text(
+                  'Active Clubs',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: _textNavy,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Meetings and members this cycle',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: _mutedBlue,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                if (activeClubs.isEmpty)
+                  const _GlassCard(
+                    child: Padding(
+                      padding: EdgeInsets.all(28),
+                      child: Center(
+                        child: Column(
+                          children: [
+                            Icon(
+                              Icons.inbox_rounded,
+                              size: 40,
+                              color: _mutedBlue,
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              'No active clubs yet.',
+                              style: TextStyle(
+                                color: _mutedBlue,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  ...activeClubs.map((club) => _ClubDashboardCard(club: club)),
+
+                // ── Pending approval section ──
+                if (pendingClubs.isNotEmpty) ...[
+                  const SizedBox(height: 28),
+                  Row(
+                    children: [
+                      const Text(
+                        'Pending Approval',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: _textNavy,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(
+                            0xFFF59E0B,
+                          ).withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: const Color(
+                              0xFFF59E0B,
+                            ).withValues(alpha: 0.28),
+                            width: 1,
+                          ),
+                        ),
+                        child: Text(
+                          '${pendingClubs.length}',
+                          style: const TextStyle(
+                            color: Color(0xFFF59E0B),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  ...pendingClubs.map((club) => _PendingClubTile(club: club)),
+                ],
+                const SizedBox(height: 32),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 }
 
+// ── Reusable Glass Card ─────────────────────────────────────────────────────
+class _GlassCard extends StatelessWidget {
+  final Widget child;
+  final Gradient? gradient;
+  final Color? borderColor;
+  final EdgeInsetsGeometry? margin;
+
+  const _GlassCard({
+    required this.child,
+    this.gradient,
+    this.borderColor,
+    this.margin,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: margin,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF1B4A7A).withValues(alpha: 0.06),
+            blurRadius: 28,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          color: gradient == null ? Colors.white : null,
+          gradient: gradient,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: borderColor ?? _dividerBlue, width: 1),
+        ),
+        child: child,
+      ),
+    );
+  }
+}
+
+// ── Stat Card ───────────────────────────────────────────────────────────────
 class _StatCard extends StatelessWidget {
   final String label;
   final int value;
   final IconData icon;
   final Color color;
-  const _StatCard(
-      {required this.label,
-      required this.value,
-      required this.icon,
-      required this.color});
+
+  const _StatCard({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: color.withOpacity(0.2)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, color: color, size: 20),
-            ),
-            const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('$value',
-                    style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: color)),
-                Text(label,
-                    style: TextStyle(
-                        fontSize: 11, color: theme.colorScheme.outline)),
-              ],
-            ),
+      child: _GlassCard(
+        gradient: LinearGradient(
+          colors: [
+            color.withValues(alpha: 0.10),
+            color.withValues(alpha: 0.04),
           ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderColor: color.withValues(alpha: 0.2),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: color, size: 22),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                '$value',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                  color: color,
+                  height: 1,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: _mutedBlue,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
+// ── Club Dashboard Card ─────────────────────────────────────────────────────
 class _ClubDashboardCard extends ConsumerWidget {
   final ClubModel club;
   const _ClubDashboardCard({required this.club});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
     final statsAsync = ref.watch(_clubStatsProvider(club.clubId));
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 10),
+    return _GlassCard(
+      margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            CircleAvatar(
-              radius: 24,
-              backgroundColor: theme.colorScheme.primaryContainer,
-              backgroundImage: club.logoUrl != null
-                  ? NetworkImage(club.logoUrl!)
-                  : null,
-              child: club.logoUrl == null
-                  ? Text(club.name[0].toUpperCase(),
-                      style: TextStyle(
+            Container(
+              decoration: const BoxDecoration(shape: BoxShape.circle),
+              child: CircleAvatar(
+                radius: 26,
+                backgroundColor: _softBlue,
+                backgroundImage: club.logoUrl != null
+                    ? NetworkImage(club.logoUrl!)
+                    : null,
+                child: club.logoUrl == null
+                    ? Text(
+                        club.name[0].toUpperCase(),
+                        style: const TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: theme.colorScheme.onPrimaryContainer))
-                  : null,
+                          color: _primaryBlue,
+                          fontSize: 18,
+                        ),
+                      )
+                    : null,
+              ),
             ),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(club.name,
-                      style: theme.textTheme.titleSmall
-                          ?.copyWith(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 2),
+                  Text(
+                    club.name,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15,
+                      color: _textNavy,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
                   Text(
                     'Every ${club.meetingDay} · Room ${club.roomNumber}',
-                    style: TextStyle(
-                        fontSize: 11, color: theme.colorScheme.outline),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: _mutedBlue,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ],
               ),
             ),
             statsAsync.when(
               loading: () => const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2)),
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: _primaryBlue,
+                ),
+              ),
               error: (_, __) => const SizedBox.shrink(),
               data: (stats) => Row(
                 children: [
                   _MiniStat(
-                      icon: Icons.event_rounded,
-                      value: stats.meetingCount,
-                      color: theme.colorScheme.primary),
-                  const SizedBox(width: 8),
+                    icon: Icons.event_rounded,
+                    value: stats.meetingCount,
+                    color: _primaryBlue,
+                  ),
+                  const SizedBox(width: 6),
                   _MiniStat(
-                      icon: Icons.people_rounded,
-                      value: stats.memberCount,
-                      color: Colors.teal),
+                    icon: Icons.people_rounded,
+                    value: stats.memberCount,
+                    color: const Color(0xFF14B8A6),
+                  ),
                 ],
               ),
             ),
@@ -368,77 +545,129 @@ class _ClubDashboardCard extends ConsumerWidget {
   }
 }
 
+// ── Mini Stat ───────────────────────────────────────────────────────────────
 class _MiniStat extends StatelessWidget {
   final IconData icon;
   final int value;
   final Color color;
-  const _MiniStat(
-      {required this.icon, required this.value, required this.color});
+
+  const _MiniStat({
+    required this.icon,
+    required this.value,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.2), width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 13, color: color),
-          const SizedBox(width: 4),
-          Text('$value',
-              style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: color)),
+          const SizedBox(width: 5),
+          Text(
+            '$value',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              color: color,
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
+// ── Pending Club Tile ───────────────────────────────────────────────────────
 class _PendingClubTile extends StatelessWidget {
   final ClubModel club;
   const _PendingClubTile({required this.club});
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: Colors.orange.withOpacity(0.15),
-          backgroundImage: club.logoUrl != null
-              ? NetworkImage(club.logoUrl!)
-              : null,
-          child: club.logoUrl == null
-              ? Text(club.name[0].toUpperCase(),
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold, color: Colors.orange))
-              : null,
-        ),
-        title: Text(club.name,
-            style: const TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: Text(
-            'Every ${club.meetingDay} · Room ${club.roomNumber}',
-            style: TextStyle(
-                fontSize: 11, color: theme.colorScheme.outline)),
-        trailing: Container(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-          decoration: BoxDecoration(
-            color: Colors.orange.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.orange.withOpacity(0.3)),
-          ),
-          child: const Text('In Review',
-              style: TextStyle(
-                  color: Colors.orange,
+    const orange = Color(0xFFF59E0B);
+
+    return _GlassCard(
+      margin: const EdgeInsets.only(bottom: 10),
+      gradient: LinearGradient(
+        colors: [
+          orange.withValues(alpha: 0.08),
+          orange.withValues(alpha: 0.02),
+        ],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      borderColor: orange.withValues(alpha: 0.2),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 22,
+              backgroundColor: orange.withValues(alpha: 0.15),
+              backgroundImage: club.logoUrl != null
+                  ? NetworkImage(club.logoUrl!)
+                  : null,
+              child: club.logoUrl == null
+                  ? Text(
+                      club.name[0].toUpperCase(),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: orange,
+                        fontSize: 16,
+                      ),
+                    )
+                  : null,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    club.name,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 14,
+                      color: _textNavy,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Every ${club.meetingDay} · Room ${club.roomNumber}',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: _mutedBlue,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: orange.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: orange.withValues(alpha: 0.3)),
+              ),
+              child: const Text(
+                'In Review',
+                style: TextStyle(
+                  color: orange,
                   fontSize: 11,
-                  fontWeight: FontWeight.w700)),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

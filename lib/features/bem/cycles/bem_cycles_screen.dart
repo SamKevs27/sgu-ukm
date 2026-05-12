@@ -6,6 +6,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+const _screenBackground = Color(0xFFF4F6FA);
+const _surfaceWhite = Color(0xFFFDFEFF);
+const _primaryBlue = Color(0xFF3A78F2);
+const _textNavy = Color(0xFF1A2647);
+const _mutedBlue = Color(0xFF7B8FC2);
+const _dividerBlue = Color(0xFFE3EAF6);
+
 class BemCyclesScreen extends ConsumerWidget {
   const BemCyclesScreen({super.key});
 
@@ -13,10 +20,13 @@ class BemCyclesScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final cyclesAsync = ref.watch(allCyclesProvider);
     final theme = Theme.of(context);
+    const fabBottomOffset = 96.0;
 
     return Scaffold(
+      backgroundColor: _screenBackground,
       body: cyclesAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () =>
+            const Center(child: CircularProgressIndicator(color: _primaryBlue)),
         error: (e, _) => Center(child: Text('Error: $e')),
         data: (cycles) {
           if (cycles.isEmpty) {
@@ -25,29 +35,41 @@ class BemCyclesScreen extends ConsumerWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(Icons.calendar_month_outlined,
-                      size: 80, color: theme.colorScheme.outline),
+                      size: 80, color: _mutedBlue),
                   const SizedBox(height: 16),
-                  Text('No cycles yet.', style: theme.textTheme.titleMedium),
+                  Text(
+                    'No cycles yet.',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: _textNavy,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                   const SizedBox(height: 8),
                   Text('Create the first semester cycle to get started.',
-                      style: TextStyle(color: theme.colorScheme.outline),
+                      style: const TextStyle(color: _mutedBlue),
                       textAlign: TextAlign.center),
                 ],
               ),
             );
           }
           return ListView.builder(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 126),
             itemCount: cycles.length,
             itemBuilder: (_, i) => _CycleCard(cycle: cycles[i]),
           );
         },
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showCreateDialog(context, ref),
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('New Cycle'),
+      floatingActionButton: Padding(
+        padding: EdgeInsets.only(bottom: fabBottomOffset),
+        child: FloatingActionButton.extended(
+          onPressed: () => _showCreateDialog(context, ref),
+          backgroundColor: _primaryBlue,
+          foregroundColor: Colors.white,
+          icon: const Icon(Icons.add_rounded),
+          label: const Text('New Cycle'),
+        ),
       ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 
@@ -55,6 +77,7 @@ class BemCyclesScreen extends ConsumerWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      backgroundColor: _screenBackground,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -76,20 +99,32 @@ class _CycleCard extends ConsumerWidget {
     Color statusColor;
     String statusLabel;
     if (cycle.isActive && !isExpired) {
-      statusColor = Colors.green;
+      statusColor = const Color(0xFF43AF61);
       statusLabel = 'Active';
     } else if (isExpired) {
-      statusColor = Colors.grey;
+      statusColor = const Color(0xFF9AA3B7);
       statusLabel = 'Expired';
     } else {
-      statusColor = Colors.orange;
+      statusColor = const Color(0xFFCF9627);
       statusLabel = 'Inactive';
     }
 
-    return Card(
+    return Container(
       margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: _surfaceWhite,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: _dividerBlue),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF17396A).withValues(alpha: 0.05),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -98,16 +133,16 @@ class _CycleCard extends ConsumerWidget {
                 Expanded(
                   child: Text(cycle.name,
                       style: theme.textTheme.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.bold)),
+                      ?.copyWith(fontWeight: FontWeight.w800, color: _textNavy)),
                 ),
                 Container(
                   padding: const EdgeInsets.symmetric(
                       horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.1),
+                  color: statusColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
                     border:
-                        Border.all(color: statusColor.withOpacity(0.4)),
+                    Border.all(color: statusColor.withValues(alpha: 0.35)),
                   ),
                   child: Text(statusLabel,
                       style: TextStyle(
@@ -120,13 +155,13 @@ class _CycleCard extends ConsumerWidget {
             const SizedBox(height: 10),
             Row(
               children: [
-                Icon(Icons.date_range_rounded,
-                    size: 14, color: theme.colorScheme.outline),
+                const Icon(Icons.date_range_rounded,
+                    size: 14, color: _mutedBlue),
                 const SizedBox(width: 6),
                 Text(
                   '${fmt.format(cycle.startDate)} – ${fmt.format(cycle.endDate)}',
                   style: theme.textTheme.bodySmall
-                      ?.copyWith(color: theme.colorScheme.outline),
+                      ?.copyWith(color: _mutedBlue, fontWeight: FontWeight.w500),
                 ),
               ],
             ),
@@ -136,6 +171,20 @@ class _CycleCard extends ConsumerWidget {
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: cycle.isActive
+                        ? const Color(0xFFE14D4D)
+                        : _primaryBlue,
+                    side: BorderSide(
+                      color: cycle.isActive
+                          ? const Color(0xFFE14D4D)
+                          : _dividerBlue,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                  ),
                   onPressed: () async {
                     try {
                       await ref
@@ -243,74 +292,113 @@ class _CreateCycleSheetState extends ConsumerState<_CreateCycleSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final fmt = DateFormat('dd MMM yyyy');
 
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 24,
-        right: 24,
-        top: 24,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 32,
+    return Container(
+      decoration: const BoxDecoration(
+        color: _screenBackground,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text('New Semester Cycle',
-              style: theme.textTheme.titleLarge
-                  ?.copyWith(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 4),
-          Text(
-            'Clubs created during this period will belong to this cycle.',
-            style: TextStyle(color: theme.colorScheme.outline, fontSize: 13),
-          ),
-          const SizedBox(height: 24),
-          TextField(
-            controller: _nameController,
-            decoration: const InputDecoration(
-              labelText: 'Cycle Name *',
-              hintText: 'e.g. Even Semester 2026',
-              prefixIcon: Icon(Icons.label_rounded),
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: 20,
+          right: 20,
+          top: 20,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 28,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                color: _mutedBlue.withValues(alpha: 0.35),
+                borderRadius: BorderRadius.circular(999),
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _DateTile(
-                  label: 'Start Date *',
-                  value: _startDate != null ? fmt.format(_startDate!) : null,
-                  onTap: () => _pickDate(isStart: true),
+            Text('New Semester Cycle',
+                style: Theme.of(context).textTheme.titleLarge
+                    ?.copyWith(fontWeight: FontWeight.w800, color: _textNavy)),
+            const SizedBox(height: 4),
+            const Text(
+              'Clubs created during this period will belong to this cycle.',
+              style: TextStyle(color: _mutedBlue, fontSize: 13),
+            ),
+            const SizedBox(height: 20),
+            TextField(
+              controller: _nameController,
+              decoration: InputDecoration(
+                labelText: 'Cycle Name *',
+                hintText: 'e.g. Even Semester 2026',
+                prefixIcon: const Icon(Icons.label_rounded, color: _mutedBlue),
+                filled: true,
+                fillColor: _surfaceWhite,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: _dividerBlue),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: _dividerBlue),
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _DateTile(
-                  label: 'End Date *',
-                  value: _endDate != null ? fmt.format(_endDate!) : null,
-                  onTap: () => _pickDate(isStart: false),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: _DateTile(
+                    label: 'Start Date *',
+                    value: _startDate != null ? fmt.format(_startDate!) : null,
+                    onTap: () => _pickDate(isStart: true),
+                  ),
                 ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _DateTile(
+                    label: 'End Date *',
+                    value: _endDate != null ? fmt.format(_endDate!) : null,
+                    onTap: () => _pickDate(isStart: false),
+                  ),
+                ),
+              ],
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                _error!,
+                style: const TextStyle(color: Color(0xFFE14D4D)),
               ),
             ],
-          ),
-          if (_error != null) ...[
-            const SizedBox(height: 12),
-            Text(_error!,
-                style: TextStyle(color: theme.colorScheme.error)),
+            const SizedBox(height: 20),
+            SizedBox(
+              height: 46,
+              child: FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: _primaryBlue,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                onPressed: _loading ? null : _submit,
+                icon: _loading
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ))
+                    : const Icon(Icons.rocket_launch_rounded),
+                label: const Text('Create Cycle'),
+              ),
+            ),
           ],
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: _loading ? null : _submit,
-            icon: _loading
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2))
-                : const Icon(Icons.rocket_launch_rounded),
-            label: const Text('Create Cycle'),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -325,30 +413,28 @@ class _DateTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(14),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
         decoration: BoxDecoration(
-          border: Border.all(color: theme.colorScheme.outline),
-          borderRadius: BorderRadius.circular(12),
+          color: _surfaceWhite,
+          border: Border.all(color: _dividerBlue),
+          borderRadius: BorderRadius.circular(14),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(label,
                 style: TextStyle(
-                    fontSize: 11, color: theme.colorScheme.outline)),
+                    fontSize: 11, color: _mutedBlue)),
             const SizedBox(height: 4),
             Text(
               value ?? 'Select',
               style: TextStyle(
                 fontWeight: FontWeight.w600,
-                color: value != null
-                    ? theme.colorScheme.onSurface
-                    : theme.colorScheme.outline,
+                color: value != null ? _textNavy : _mutedBlue,
               ),
             ),
           ],

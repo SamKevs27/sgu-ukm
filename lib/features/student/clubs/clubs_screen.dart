@@ -17,6 +17,12 @@ class ClubsScreen extends ConsumerStatefulWidget {
 class _ClubsScreenState extends ConsumerState<ClubsScreen> {
   String _search = '';
 
+  static const _screenBackground = Color(0xFFFBFDFF);
+  static const _softBlue = Color(0xFFEAF4FF);
+  static const _primaryBlue = Color(0xFF2F80FF);
+  static const _textNavy = Color(0xFF101C3D);
+  static const _mutedBlue = Color(0xFF8093C6);
+
   @override
   Widget build(BuildContext context) {
     // Uses cycle-aware provider, then filters out anything not truly active
@@ -24,16 +30,36 @@ class _ClubsScreenState extends ConsumerState<ClubsScreen> {
     final user = ref.watch(currentUserProvider).valueOrNull;
 
     return Scaffold(
+      backgroundColor: _screenBackground,
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 12),
             child: TextField(
               decoration: const InputDecoration(
                 hintText: 'Search clubs...',
-                prefixIcon: Icon(Icons.search_rounded),
+                hintStyle: TextStyle(
+                  color: _mutedBlue,
+                  fontWeight: FontWeight.w500,
+                ),
+                prefixIcon: Icon(Icons.search_rounded, color: _mutedBlue),
+                filled: true,
+                fillColor: _softBlue,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 16,
+                ),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.all(Radius.circular(12)),
+                  borderRadius: BorderRadius.all(Radius.circular(28)),
+                  borderSide: BorderSide.none,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(28)),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(28)),
+                  borderSide: BorderSide(color: _primaryBlue, width: 1.2),
                 ),
               ),
               onChanged: (v) => setState(() => _search = v.toLowerCase()),
@@ -41,8 +67,7 @@ class _ClubsScreenState extends ConsumerState<ClubsScreen> {
           ),
           Expanded(
             child: clubsAsync.when(
-              loading: () =>
-                  const Center(child: CircularProgressIndicator()),
+              loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => Center(child: Text('Error: $e')),
               data: (clubs) {
                 // Filter out clubs whose cycle is inactive (marked as expired
@@ -54,27 +79,38 @@ class _ClubsScreenState extends ConsumerState<ClubsScreen> {
                 final filtered = _search.isEmpty
                     ? activeCycleClubs
                     : activeCycleClubs
-                        .where((c) =>
-                            c.name.toLowerCase().contains(_search) ||
-                            c.description.toLowerCase().contains(_search))
-                        .toList();
+                          .where(
+                            (c) =>
+                                c.name.toLowerCase().contains(_search) ||
+                                c.description.toLowerCase().contains(_search),
+                          )
+                          .toList();
 
                 if (filtered.isEmpty) {
                   return const Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.search_off_rounded,
-                            size: 64, color: Colors.grey),
+                        Icon(
+                          Icons.search_off_rounded,
+                          size: 64,
+                          color: _mutedBlue,
+                        ),
                         SizedBox(height: 8),
-                        Text('No clubs found'),
+                        Text(
+                          'No clubs found',
+                          style: TextStyle(
+                            color: _textNavy,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                       ],
                     ),
                   );
                 }
 
                 return ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 112),
                   itemCount: filtered.length,
                   itemBuilder: (_, i) =>
                       _ClubCard(club: filtered[i], userId: user?.uid ?? ''),
@@ -84,13 +120,19 @@ class _ClubsScreenState extends ConsumerState<ClubsScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const CreateClubScreen()),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 96),
+        child: FloatingActionButton.extended(
+          backgroundColor: _primaryBlue,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const CreateClubScreen()),
+          ),
+          icon: const Icon(Icons.add_rounded),
+          label: const Text('Create Club'),
         ),
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('Create Club'),
       ),
     );
   }
@@ -101,85 +143,170 @@ class _ClubCard extends ConsumerWidget {
   final String userId;
   const _ClubCard({required this.club, required this.userId});
 
+  static const _softBlue = Color(0xFFEAF4FF);
+  static const _primaryBlue = Color(0xFF2F80FF);
+  static const _textNavy = Color(0xFF101C3D);
+  static const _mutedBlue = Color(0xFF8093C6);
+  static const _dividerBlue = Color(0xFFE9EEF8);
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ClubDetailScreen(club: club),
+    void openDetail() {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => ClubDetailScreen(club: club)),
+      );
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF1B4A7A).withValues(alpha: 0.06),
+            blurRadius: 28,
+            offset: const Offset(0, 12),
           ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              CircleAvatar(
-                radius: 28,
-                backgroundColor: theme.colorScheme.primaryContainer,
-                backgroundImage: club.logoUrl != null
-                    ? NetworkImage(club.logoUrl!)
-                    : null,
-                child: club.logoUrl == null
-                    ? Text(
-                        club.name[0].toUpperCase(),
-                        style: TextStyle(
-                          color: theme.colorScheme.onPrimaryContainer,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 20,
-                        ),
-                      )
-                    : null,
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(18),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: openDetail,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
                   children: [
-                    Text(club.name,
-                        style: theme.textTheme.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 4),
-                    Text(
-                      club.description,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(color: theme.colorScheme.outline),
+                    CircleAvatar(
+                      radius: 25,
+                      backgroundColor: theme.colorScheme.primaryContainer,
+                      backgroundImage: club.logoUrl != null
+                          ? NetworkImage(club.logoUrl!)
+                          : null,
+                      child: club.logoUrl == null
+                          ? Text(
+                              club.name[0].toUpperCase(),
+                              style: const TextStyle(
+                                color: _primaryBlue,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 19,
+                              ),
+                            )
+                          : null,
                     ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Icon(Icons.people_outline_rounded,
-                            size: 14,
-                            color: theme.colorScheme.outline),
-                        const SizedBox(width: 4),
-                        Text('${club.memberCount} members',
-                            style: theme.textTheme.bodySmall),
-                        const SizedBox(width: 12),
-                        Icon(Icons.schedule_rounded,
-                            size: 14,
-                            color: theme.colorScheme.outline),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${club.meetingDay} ${club.meetingTime}',
-                          style: theme.textTheme.bodySmall,
-                        ),
-                      ],
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            club.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              color: _textNavy,
+                              fontWeight: FontWeight.w800,
+                              height: 1.15,
+                            ),
+                          ),
+                          const SizedBox(height: 5),
+                          Text(
+                            club.description,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: _mutedBlue,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
-              ),
-              const Icon(Icons.chevron_right_rounded),
-            ],
+                const SizedBox(height: 20),
+                const Divider(height: 1, color: _dividerBlue),
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _ClubMetaItem(
+                        icon: Icons.groups_2_outlined,
+                        label: '${club.memberCount} members',
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _ClubMetaItem(
+                        icon: Icons.schedule_rounded,
+                        label: '${club.meetingDay} ${club.meetingTime}',
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                SizedBox(
+                  height: 40,
+                  child: FilledButton(
+                    onPressed: openDetail,
+                    style: FilledButton.styleFrom(
+                      elevation: 0,
+                      backgroundColor: _softBlue,
+                      foregroundColor: _primaryBlue,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      textStyle: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                      ),
+                    ),
+                    child: const Text('Detail'),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
+    );
+  }
+}
+
+class _ClubMetaItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _ClubMetaItem({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 17, color: _ClubCard._mutedBlue),
+        const SizedBox(width: 7),
+        Flexible(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: _ClubCard._mutedBlue,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

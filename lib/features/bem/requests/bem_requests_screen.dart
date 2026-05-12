@@ -1,12 +1,19 @@
 // lib/features/bem/requests/bem_requests_screen.dart
 // lib/features/bem/requests/bem_requests_screen.dart
 import 'package:campus_club/models/club_request_model.dart';
-import 'package:campus_club/models/club_model.dart';
 import 'package:campus_club/providers/auth_provider.dart';
 import 'package:campus_club/providers/bem_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+
+const _screenBackground = Color(0xFFF4F6FA);
+const _surfaceWhite = Color(0xFFFDFEFF);
+const _softBlue = Color(0xFFEAF2FF);
+const _primaryBlue = Color(0xFF3A78F2);
+const _textNavy = Color(0xFF1A2647);
+const _mutedBlue = Color(0xFF7B8FC2);
+const _dividerBlue = Color(0xFFE3EAF6);
 
 class BemRequestsScreen extends ConsumerStatefulWidget {
   const BemRequestsScreen({super.key});
@@ -34,19 +41,49 @@ class _BemRequestsScreenState extends ConsumerState<BemRequestsScreen>
   @override
   Widget build(BuildContext context) {
     final requestsAsync = ref.watch(allClubRequestsProvider);
+    final theme = Theme.of(context);
 
-    return Column(
+    return Container(
+      color: _screenBackground,
+      child: Column(
       children: [
-        TabBar(
-          controller: _tab,
-          tabs: const [
-            Tab(text: 'Pending'),
-            Tab(text: 'Reviewed'),
-          ],
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          child: Container(
+            decoration: BoxDecoration(
+              color: _surfaceWhite,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: _dividerBlue),
+            ),
+            child: TabBar(
+              controller: _tab,
+              dividerColor: Colors.transparent,
+              indicatorSize: TabBarIndicatorSize.tab,
+              labelColor: _primaryBlue,
+              unselectedLabelColor: _mutedBlue,
+              labelStyle: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+              unselectedLabelStyle: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+              indicator: BoxDecoration(
+                color: _softBlue,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.all(4),
+              tabs: const [
+                Tab(text: 'Pending'),
+                Tab(text: 'Reviewed'),
+              ],
+            ),
+          ),
         ),
         Expanded(
           child: requestsAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
+            loading: () => const Center(
+              child: CircularProgressIndicator(color: _primaryBlue),
+            ),
             error: (e, _) => Center(child: Text('Error: $e')),
             data: (requests) {
               final pending = requests
@@ -67,6 +104,7 @@ class _BemRequestsScreenState extends ConsumerState<BemRequestsScreen>
           ),
         ),
       ],
+      ),
     );
   }
 }
@@ -79,8 +117,6 @@ class _RequestList extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-
     if (requests.isEmpty) {
       return Center(
         child: Column(
@@ -91,12 +127,15 @@ class _RequestList extends ConsumerWidget {
                   ? Icons.inbox_outlined
                   : Icons.check_circle_outline_rounded,
               size: 72,
-              color: theme.colorScheme.outline,
+              color: _mutedBlue,
             ),
             const SizedBox(height: 16),
             Text(
               isPending ? 'No pending requests' : 'No reviewed requests yet',
-              style: theme.textTheme.titleMedium,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: _textNavy,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ],
         ),
@@ -104,7 +143,7 @@ class _RequestList extends ConsumerWidget {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 126),
       itemCount: requests.length,
       itemBuilder: (_, i) => _RequestCard(
         request: requests[i],
@@ -127,15 +166,15 @@ class _RequestCard extends ConsumerWidget {
       };
 
   Color _typeColor(RequestType t, ColorScheme cs) => switch (t) {
-        RequestType.create => cs.primary,
-        RequestType.renew => Colors.teal,
-        RequestType.update => Colors.orange,
+      RequestType.create => _primaryBlue,
+      RequestType.renew => const Color(0xFF2CA897),
+      RequestType.update => const Color(0xFFCF9627),
       };
 
   Color _statusColor(RequestStatus s) => switch (s) {
-        RequestStatus.pending => Colors.orange,
-        RequestStatus.approved => Colors.green,
-        RequestStatus.rejected => Colors.red,
+      RequestStatus.pending => const Color(0xFFCF9627),
+      RequestStatus.approved => const Color(0xFF43AF61),
+      RequestStatus.rejected => const Color(0xFFE14D4D),
       };
 
   String _statusLabel(RequestStatus s) => switch (s) {
@@ -231,10 +270,22 @@ class _RequestCard extends ConsumerWidget {
     // Load the associated club info
     final clubAsync = ref.watch(clubByIdProvider(request.clubId));
 
-    return Card(
+    return Container(
       margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: _surfaceWhite,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: _dividerBlue),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF17396A).withValues(alpha: 0.05),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -245,9 +296,9 @@ class _RequestCard extends ConsumerWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: typeColor.withOpacity(0.12),
+                    color: typeColor.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: typeColor.withOpacity(0.4)),
+                    border: Border.all(color: typeColor.withValues(alpha: 0.4)),
                   ),
                   child: Text(
                     _typeLabel(request.type),
@@ -263,9 +314,11 @@ class _RequestCard extends ConsumerWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color:
-                        _statusColor(request.status).withOpacity(0.1),
+                    color: _statusColor(request.status).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: _statusColor(request.status).withValues(alpha: 0.35),
+                    ),
                   ),
                   child: Text(
                     _statusLabel(request.status),
@@ -286,7 +339,10 @@ class _RequestCard extends ConsumerWidget {
               loading: () => const SizedBox(
                 height: 40,
                 child: Center(
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: _primaryBlue,
+                  ),
                 ),
               ),
               error: (_, __) => Text('Club ID: ${request.clubId}',
@@ -300,16 +356,16 @@ class _RequestCard extends ConsumerWidget {
                   children: [
                     CircleAvatar(
                       radius: 22,
-                      backgroundColor: theme.colorScheme.primaryContainer,
+                      backgroundColor: _softBlue,
                       backgroundImage: club.logoUrl != null
                           ? NetworkImage(club.logoUrl!)
                           : null,
                       child: club.logoUrl == null
                           ? Text(club.name[0].toUpperCase(),
                               style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color:
-                                      theme.colorScheme.onPrimaryContainer))
+                            fontWeight: FontWeight.w800,
+                            color: _primaryBlue,
+                            fontSize: 18))
                           : null,
                     ),
                     const SizedBox(width: 12),
@@ -319,11 +375,13 @@ class _RequestCard extends ConsumerWidget {
                         children: [
                           Text(club.name,
                               style: theme.textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.bold)),
+                                  fontWeight: FontWeight.w800,
+                                  color: _textNavy)),
                           Text(
                             '${club.meetingDay} · ${club.meetingTime} · Room ${club.roomNumber}',
                             style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.outline),
+                                color: _mutedBlue,
+                                fontWeight: FontWeight.w500),
                           ),
                         ],
                       ),
@@ -334,19 +392,18 @@ class _RequestCard extends ConsumerWidget {
             ),
 
             const SizedBox(height: 12),
-            Divider(height: 1, color: theme.colorScheme.outlineVariant),
+            const Divider(height: 1, color: _dividerBlue),
             const SizedBox(height: 10),
 
             // ── Meta info ──
             Row(
               children: [
-                Icon(Icons.schedule_rounded,
-                    size: 13, color: theme.colorScheme.outline),
+                const Icon(Icons.schedule_rounded, size: 14, color: _mutedBlue),
                 const SizedBox(width: 4),
                 Text(
                   'Submitted ${fmt.format(request.createdAt)}',
                   style: theme.textTheme.bodySmall
-                      ?.copyWith(color: theme.colorScheme.outline),
+                      ?.copyWith(color: _mutedBlue, fontWeight: FontWeight.w500),
                 ),
               ],
             ),
@@ -356,19 +413,22 @@ class _RequestCard extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceVariant,
-                  borderRadius: BorderRadius.circular(8),
+                  color: _softBlue.withValues(alpha: 0.55),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: _dividerBlue),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.comment_rounded,
-                        size: 14, color: theme.colorScheme.outline),
+                    const Icon(Icons.comment_rounded, size: 14, color: _mutedBlue),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
                         request.reviewNote!,
-                        style: theme.textTheme.bodySmall,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: _textNavy,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
                   ],
@@ -384,8 +444,12 @@ class _RequestCard extends ConsumerWidget {
                   Expanded(
                     child: OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.red,
-                        side: const BorderSide(color: Colors.red),
+                        foregroundColor: const Color(0xFFE14D4D),
+                        side: const BorderSide(color: Color(0xFFE14D4D)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 13),
                       ),
                       onPressed: () =>
                           _handleAction(context, ref, false),
@@ -396,6 +460,14 @@ class _RequestCard extends ConsumerWidget {
                   const SizedBox(width: 12),
                   Expanded(
                     child: FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: _primaryBlue,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                      ),
                       onPressed: () =>
                           _handleAction(context, ref, true),
                       icon: const Icon(Icons.check_rounded, size: 18),
