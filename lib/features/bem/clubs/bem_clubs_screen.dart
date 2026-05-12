@@ -3,6 +3,7 @@ import 'package:campus_club/models/club_model.dart';
 import 'package:campus_club/models/meeting_model.dart';
 import 'package:campus_club/models/member_model.dart';
 import 'package:campus_club/providers/attendance_provider.dart';
+import 'package:campus_club/providers/bem_provider.dart' hide allClubsProvider;
 import 'package:campus_club/providers/club_provider.dart';
 import 'package:campus_club/providers/meeting_provider.dart';
 import 'package:flutter/material.dart';
@@ -269,6 +270,66 @@ class _ClubDetailSheet extends ConsumerWidget {
                   icon: const Icon(Icons.edit_rounded, size: 18),
                   label: const Text('Edit Club Details'),
                 ),
+                const SizedBox(height: 8),
+                if (club.status == ClubStatus.active)
+                  OutlinedButton.icon(
+                    onPressed: () => showDialog(
+                      context: context,
+                      builder: (_) => _SuspendClubDialog(club: club),
+                    ),
+                    icon: const Icon(Icons.block_rounded, size: 18),
+                    label: const Text('Suspend Club'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      side: const BorderSide(color: Colors.red),
+                    ),
+                  )
+                else if (club.status == ClubStatus.suspended)
+                  FilledButton.icon(
+                    onPressed: () async {
+                      final confirmed = await showDialog<bool>(
+                        context: context,
+                        builder: (_) => AlertDialog(
+                          title: const Text('Reactivate Club'),
+                          content: Text(
+                            'Set "${club.name}" back to active?',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, false),
+                              child: const Text('Cancel'),
+                            ),
+                            FilledButton(
+                              onPressed: () => Navigator.pop(context, true),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: Colors.green,
+                              ),
+                              child: const Text('Reactivate'),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (confirmed == true) {
+                        try {
+                          await ref
+                              .read(bemServiceProvider)
+                              .reactivateClub(club.clubId);
+                          if (context.mounted) Navigator.pop(context);
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Error: $e')),
+                            );
+                          }
+                        }
+                      }
+                    },
+                    icon: const Icon(Icons.check_circle_rounded, size: 18),
+                    label: const Text('Reactivate Club'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.green,
+                    ),
+                  ),
                 const Divider(height: 32),
 
                 // ── Meetings ──
@@ -763,6 +824,89 @@ class _StatBox extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _SuspendClubDialog extends ConsumerStatefulWidget {
+  final ClubModel club;
+  const _SuspendClubDialog({required this.club});
+
+  @override
+  ConsumerState<_SuspendClubDialog> createState() => _SuspendClubDialogState();
+}
+
+class _SuspendClubDialogState extends ConsumerState<_SuspendClubDialog> {
+  final _reasonCtrl = TextEditingController();
+  bool _loading = false;
+
+  @override
+  void dispose() {
+    _reasonCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _suspend() async {
+    setState(() => _loading = true);
+    try {
+      await ref.read(bemServiceProvider).suspendClub(
+            clubId: widget.club.clubId,
+            reason: _reasonCtrl.text.trim().isEmpty
+                ? null
+                : _reasonCtrl.text.trim(),
+          );
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('Suspend "${widget.club.name}"?'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('This club will be blocked from creating meetings.'),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _reasonCtrl,
+            decoration: const InputDecoration(
+              labelText: 'Reason (optional)',
+              hintText: 'e.g. Violation of club policy',
+            ),
+            maxLines: 2,
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: _loading ? null : () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: _loading ? null : _suspend,
+          style: FilledButton.styleFrom(backgroundColor: Colors.red),
+          child: _loading
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : const Text('Suspend'),
+        ),
+      ],
     );
   }
 }
