@@ -175,12 +175,12 @@ class _ScanAttendanceScreenState extends ConsumerState<ScanAttendanceScreen> {
                       ),
                     ),
                     const SizedBox(height: 14),
-                    if (!kIsWeb)
-                      OutlinedButton.icon(
-                        onPressed: _processing ? null : _pickQrFromGallery,
-                        icon: const Icon(Icons.photo_library_outlined),
-                        label: const Text('Choose from gallery'),
-                      ),
+                    // if (!kIsWeb)
+                    //   OutlinedButton.icon(
+                    //     onPressed: _processing ? null : _pickQrFromGallery,
+                    //     icon: const Icon(Icons.photo_library_outlined),
+                    //     label: const Text('Choose from gallery'),
+                    //   ),
                     if (_processing) ...[
                       const SizedBox(height: 12),
                       const Center(

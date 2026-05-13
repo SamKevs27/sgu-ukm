@@ -5,6 +5,7 @@ import 'package:campus_club/models/club_model.dart';
 import 'package:campus_club/providers/auth_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:campus_club/providers/cycle_provider.dart';
 
 // ── Design tokens (mirrors BEM dashboard & create club screen) ────────────────
 const _screenBackground = Color(0xFFFBFDFF);
