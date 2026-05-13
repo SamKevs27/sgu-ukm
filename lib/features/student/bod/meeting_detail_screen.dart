@@ -124,11 +124,20 @@ class _MeetingDetailScreenState extends ConsumerState<MeetingDetailScreen> {
   bool _publishing = false;
   final Set<String> _attendanceToggleBusy = {};
 
+  late List<String> _photoUrls;
+
   @override
   void initState() {
     super.initState();
     _descController.text = widget.meeting.description ?? '';
+    _photoUrls = List<String>.from(widget.meeting.photoUrls); // ← add this
   }
+
+  // @override
+  // void initState() {
+  //   super.initState();
+  //   _descController.text = widget.meeting.description ?? '';
+  // }
 
   String get _qrData => jsonEncode({
         'clubId': widget.club.clubId,
@@ -137,29 +146,27 @@ class _MeetingDetailScreenState extends ConsumerState<MeetingDetailScreen> {
       });
 
   Future<void> _pickAndUploadPhoto() async {
-    final picker = ImagePicker();
-    final picked =
-        await picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
-    if (picked == null) return;
+  final picker = ImagePicker();
+  final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+  if (picked == null) return;
 
-    setState(() => _uploadingPhoto = true);
-    try {
-      final url = await StorageService().uploadMeetingPhoto(
-        File(picked.path),
-        widget.club.clubId,
-        widget.meeting.meetingId,
-      );
-      final current = List<String>.from(widget.meeting.photoUrls);
-      current.add(url);
-      await ref.read(meetingServiceProvider).updateMeeting(
-            clubId: widget.club.clubId,
-            meetingId: widget.meeting.meetingId,
-            photoUrls: current,
-          );
-    } finally {
-      if (mounted) setState(() => _uploadingPhoto = false);
-    }
+  setState(() => _uploadingPhoto = true);
+  try {
+    final url = await StorageService().uploadMeetingPhoto(
+      File(picked.path),
+      widget.club.clubId,
+      widget.meeting.meetingId,
+    );
+    setState(() => _photoUrls.add(url)); // ← update local state
+    await ref.read(meetingServiceProvider).updateMeeting(
+      clubId: widget.club.clubId,
+      meetingId: widget.meeting.meetingId,
+      photoUrls: _photoUrls, // ← use local list
+    );
+  } finally {
+    if (mounted) setState(() => _uploadingPhoto = false);
   }
+}
 
   Future<void> _saveDescription() async {
     setState(() => _savingDesc = true);
@@ -255,7 +262,7 @@ class _MeetingDetailScreenState extends ConsumerState<MeetingDetailScreen> {
             clubName: widget.club.name,
             meetingId: widget.meeting.meetingId,
             description: description,
-            photoUrls: widget.meeting.photoUrls,
+            photoUrls: _photoUrls,
             clubLogoUrl: widget.club.logoUrl,
           );
       if (mounted) {
@@ -687,7 +694,7 @@ class _MeetingDetailScreenState extends ConsumerState<MeetingDetailScreen> {
               children: [
                 // Photo grid / empty state
                 Expanded(
-                  child: widget.meeting.photoUrls.isEmpty
+                  child: _photoUrls.isEmpty
                       ? Center(
                           child: _GlassCard(
                             margin: const EdgeInsets.symmetric(horizontal: 40),
