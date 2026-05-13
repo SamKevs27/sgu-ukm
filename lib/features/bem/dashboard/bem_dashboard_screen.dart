@@ -1,4 +1,5 @@
 // lib/features/bem/dashboard/bem_dashboard_screen.dart
+import 'package:campus_club/features/student/clubs/club_detail_screen.dart';
 import 'package:campus_club/models/club_model.dart';
 import 'package:campus_club/providers/club_provider.dart';
 import 'package:campus_club/providers/cycle_provider.dart';
@@ -6,6 +7,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:campus_club/features/bem/clubs/bem_clubs_screen.dart';
 
 // ── Per-club stats provider ───────────────────────────────────────────────────
 final _clubStatsProvider = FutureProvider.family<_ClubStats, String>((
@@ -63,15 +65,12 @@ class BemDashboardScreen extends ConsumerWidget {
           child: Text('Error: $e', style: const TextStyle(color: Colors.red)),
         ),
         data: (clubs) {
-          final activeClubs = clubs
-              .where((c) => c.status == ClubStatus.active)
-              .toList();
-          final pendingClubs = clubs
-              .where((c) => c.status == ClubStatus.pending)
-              .toList();
-          final suspendedClubs = clubs
-              .where((c) => c.status == ClubStatus.suspended)
-              .toList();
+          final activeClubs =
+              clubs.where((c) => c.status == ClubStatus.active).toList();
+          final pendingClubs =
+              clubs.where((c) => c.status == ClubStatus.pending).toList();
+          final suspendedClubs =
+              clubs.where((c) => c.status == ClubStatus.suspended).toList();
           return RefreshIndicator(
             color: _primaryBlue,
             onRefresh: () async =>
@@ -101,7 +100,8 @@ class BemDashboardScreen extends ConsumerWidget {
                                 Container(
                                   padding: const EdgeInsets.all(10),
                                   decoration: BoxDecoration(
-                                    color: Colors.red.withValues(alpha: 0.10),
+                                    color:
+                                        Colors.red.withValues(alpha: 0.10),
                                     borderRadius: BorderRadius.circular(14),
                                   ),
                                   child: const Icon(
@@ -141,7 +141,8 @@ class BemDashboardScreen extends ConsumerWidget {
                                 Container(
                                   padding: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.72),
+                                    color:
+                                        Colors.white.withValues(alpha: 0.72),
                                     borderRadius: BorderRadius.circular(14),
                                   ),
                                   child: const Icon(
@@ -162,7 +163,6 @@ class BemDashboardScreen extends ConsumerWidget {
                                           fontSize: 11,
                                           color: _mutedBlue,
                                           fontWeight: FontWeight.w600,
-                                          letterSpacing: 0,
                                         ),
                                       ),
                                       const SizedBox(height: 2),
@@ -267,11 +267,8 @@ class BemDashboardScreen extends ConsumerWidget {
                       child: Center(
                         child: Column(
                           children: [
-                            Icon(
-                              Icons.inbox_rounded,
-                              size: 40,
-                              color: _mutedBlue,
-                            ),
+                            Icon(Icons.inbox_rounded,
+                                size: 40, color: _mutedBlue),
                             SizedBox(height: 8),
                             Text(
                               'No active clubs yet.',
@@ -286,7 +283,8 @@ class BemDashboardScreen extends ConsumerWidget {
                     ),
                   )
                 else
-                  ...activeClubs.map((club) => _ClubDashboardCard(club: club)),
+                  ...activeClubs
+                      .map((club) => _ClubDashboardCard(club: club)),
 
                 // ── Pending approval section ──
                 if (pendingClubs.isNotEmpty) ...[
@@ -304,18 +302,13 @@ class BemDashboardScreen extends ConsumerWidget {
                       const SizedBox(width: 10),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 3,
-                        ),
+                            horizontal: 10, vertical: 3),
                         decoration: BoxDecoration(
-                          color: const Color(
-                            0xFFF59E0B,
-                          ).withValues(alpha: 0.12),
+                          color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: const Color(
-                              0xFFF59E0B,
-                            ).withValues(alpha: 0.28),
+                            color: const Color(0xFFF59E0B)
+                                .withValues(alpha: 0.28),
                             width: 1,
                           ),
                         ),
@@ -343,7 +336,7 @@ class BemDashboardScreen extends ConsumerWidget {
   }
 }
 
-// ── Reusable Glass Card ─────────────────────────────────────────────────────
+// ── Reusable Glass Card ───────────────────────────────────────────────────────
 class _GlassCard extends StatelessWidget {
   final Widget child;
   final Gradient? gradient;
@@ -385,7 +378,7 @@ class _GlassCard extends StatelessWidget {
   }
 }
 
-// ── Stat Card ───────────────────────────────────────────────────────────────
+// ── Stat Card ─────────────────────────────────────────────────────────────────
 class _StatCard extends StatelessWidget {
   final String label;
   final int value;
@@ -452,10 +445,22 @@ class _StatCard extends StatelessWidget {
   }
 }
 
-// ── Club Dashboard Card ─────────────────────────────────────────────────────
+// ── Club Dashboard Card ───────────────────────────────────────────────────────
 class _ClubDashboardCard extends ConsumerWidget {
   final ClubModel club;
   const _ClubDashboardCard({required this.club});
+
+  void _openDetail(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: _screenBackground,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => BemClubDetailSheet(club: club),
+    );
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -463,89 +468,98 @@ class _ClubDashboardCard extends ConsumerWidget {
 
     return _GlassCard(
       margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Container(
-              decoration: const BoxDecoration(shape: BoxShape.circle),
-              child: CircleAvatar(
-                radius: 26,
-                backgroundColor: _softBlue,
-                backgroundImage: club.logoUrl != null
-                    ? NetworkImage(club.logoUrl!)
-                    : null,
-                child: club.logoUrl == null
-                    ? Text(
-                        club.name[0].toUpperCase(),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: _primaryBlue,
-                          fontSize: 18,
-                        ),
-                      )
-                    : null,
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    club.name,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 15,
-                      color: _textNavy,
-                    ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(18),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: () => _openDetail(context),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  decoration: const BoxDecoration(shape: BoxShape.circle),
+                  child: CircleAvatar(
+                    radius: 26,
+                    backgroundColor: _softBlue,
+                    backgroundImage: club.logoUrl != null
+                        ? NetworkImage(club.logoUrl!)
+                        : null,
+                    child: club.logoUrl == null
+                        ? Text(
+                            club.name[0].toUpperCase(),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: _primaryBlue,
+                              fontSize: 18,
+                            ),
+                          )
+                        : null,
                   ),
-                  const SizedBox(height: 3),
-                  Text(
-                    'Every ${club.meetingDay} · Room ${club.roomNumber}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: _mutedBlue,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            statsAsync.when(
-              loading: () => const SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: _primaryBlue,
                 ),
-              ),
-              error: (_, __) => const SizedBox.shrink(),
-              data: (stats) => Row(
-                children: [
-                  _MiniStat(
-                    icon: Icons.event_rounded,
-                    value: stats.meetingCount,
-                    color: _primaryBlue,
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        club.name,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15,
+                          color: _textNavy,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        'Every ${club.meetingDay} · Room ${club.roomNumber}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: _mutedBlue,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 6),
-                  _MiniStat(
-                    icon: Icons.people_rounded,
-                    value: stats.memberCount,
-                    color: const Color(0xFF14B8A6),
+                ),
+                statsAsync.when(
+                  loading: () => const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: _primaryBlue),
                   ),
-                ],
-              ),
+                  error: (_, __) => const SizedBox.shrink(),
+                  data: (stats) => Row(
+                    children: [
+                      _MiniStat(
+                        icon: Icons.event_rounded,
+                        value: stats.meetingCount,
+                        color: _primaryBlue,
+                      ),
+                      const SizedBox(width: 6),
+                      _MiniStat(
+                        icon: Icons.people_rounded,
+                        value: stats.memberCount,
+                        color: const Color(0xFF14B8A6),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Icon(Icons.chevron_right_rounded,
+                    color: _mutedBlue, size: 20),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 }
 
-// ── Mini Stat ───────────────────────────────────────────────────────────────
+// ── Mini Stat ─────────────────────────────────────────────────────────────────
 class _MiniStat extends StatelessWidget {
   final IconData icon;
   final int value;
@@ -585,7 +599,7 @@ class _MiniStat extends StatelessWidget {
   }
 }
 
-// ── Pending Club Tile ───────────────────────────────────────────────────────
+// ── Pending Club Tile ─────────────────────────────────────────────────────────
 class _PendingClubTile extends StatelessWidget {
   final ClubModel club;
   const _PendingClubTile({required this.club});
@@ -612,9 +626,8 @@ class _PendingClubTile extends StatelessWidget {
             CircleAvatar(
               radius: 22,
               backgroundColor: orange.withValues(alpha: 0.15),
-              backgroundImage: club.logoUrl != null
-                  ? NetworkImage(club.logoUrl!)
-                  : null,
+              backgroundImage:
+                  club.logoUrl != null ? NetworkImage(club.logoUrl!) : null,
               child: club.logoUrl == null
                   ? Text(
                       club.name[0].toUpperCase(),
@@ -652,7 +665,8 @@ class _PendingClubTile extends StatelessWidget {
               ),
             ),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
                 color: orange.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(999),

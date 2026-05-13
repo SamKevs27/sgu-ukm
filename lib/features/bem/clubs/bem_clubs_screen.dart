@@ -82,7 +82,7 @@ class _ClubCard extends ConsumerWidget {
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
-        builder: (_) => _ClubDetailSheet(club: club),
+        builder: (_) => BemClubDetailSheet(club: club),
       );
     }
 
@@ -255,9 +255,9 @@ class _MetaItem extends StatelessWidget {
   }
 }
 
-class _ClubDetailSheet extends ConsumerWidget {
+class BemClubDetailSheet extends ConsumerWidget {
   final ClubModel club;
-  const _ClubDetailSheet({required this.club});
+  const BemClubDetailSheet({required this.club});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

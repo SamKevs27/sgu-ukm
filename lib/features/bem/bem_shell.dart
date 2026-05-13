@@ -3,6 +3,7 @@ import 'package:campus_club/features/bem/clubs/bem_clubs_screen.dart';
 import 'package:campus_club/features/bem/cycles/bem_cycles_screen.dart';
 import 'package:campus_club/features/bem/dashboard/bem_dashboard_screen.dart';
 import 'package:campus_club/features/bem/requests/bem_requests_screen.dart';
+import 'package:campus_club/features/student/fyp/fyp_screen.dart';
 import 'package:campus_club/providers/auth_provider.dart';
 import 'package:campus_club/shared/widgets/liquid_glass_nav_bar.dart';
 import 'package:campus_club/shared/widgets/profile_popup.dart';
@@ -37,11 +38,18 @@ class _BemShellState extends ConsumerState<BemShell> {
     );
   }
 
+  void _openFyp(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const FypScreen(showBackButton: true)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        titleSpacing: 0, // Remove default title padding so row starts at left edge
+        titleSpacing: 0,
         title: Row(
           children: [
             IconButton(
@@ -51,7 +59,13 @@ class _BemShellState extends ConsumerState<BemShell> {
             const Text('Hello, BEM'),
           ],
         ),
-        actions: const [], // Empty since icon moved to title
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.auto_awesome_rounded),
+            tooltip: 'FYP',
+            onPressed: () => _openFyp(context),
+          ),
+        ],
       ),
       extendBody: true,
       body: IndexedStack(

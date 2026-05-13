@@ -9,7 +9,8 @@ import 'package:intl/intl.dart';
 import 'comment_bottom_sheet.dart';
 
 class FypScreen extends ConsumerWidget {
-  const FypScreen({super.key});
+  final bool showBackButton;
+  const FypScreen({super.key, this.showBackButton = false});
 
   static const _screenBackground = Color(0xFFFBFDFF);
   static const _textNavy = Color(0xFF101C3D);
@@ -22,6 +23,23 @@ class FypScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: _screenBackground,
+      // Show an AppBar with a back button only when pushed onto the stack.
+      appBar: showBackButton
+          ? AppBar(
+              backgroundColor: Colors.white,
+              surfaceTintColor: Colors.transparent,
+              elevation: 0,
+              iconTheme: const IconThemeData(color: _textNavy),
+              title: const Text(
+                'FYP',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: _textNavy,
+                ),
+              ),
+            )
+          : null,
       body: feedAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Error: $e')),
@@ -324,7 +342,8 @@ class _FeedHeader extends StatelessWidget {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: _softBlue,
                   borderRadius: BorderRadius.circular(999),
@@ -390,7 +409,6 @@ class _FeedActions extends ConsumerWidget {
         padding: const EdgeInsets.only(top: 12),
         child: Row(
           children: [
-            // Like
             _FeedActionButton(
               icon: isLikedAsync.when(
                 data: (liked) => liked
@@ -408,7 +426,6 @@ class _FeedActions extends ConsumerWidget {
               onTap: onLike,
             ),
             const SizedBox(width: 26),
-            // Comment
             _FeedActionButton(
               icon: Icons.mode_comment_outlined,
               color: _mutedBlue,
