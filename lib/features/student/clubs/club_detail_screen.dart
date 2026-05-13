@@ -5,7 +5,6 @@ import 'package:campus_club/models/club_model.dart';
 import 'package:campus_club/providers/auth_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:campus_club/providers/cycle_provider.dart';
 
 // ── Design tokens (mirrors BEM dashboard & create club screen) ────────────────
 const _screenBackground = Color(0xFFFBFDFF);
@@ -154,7 +153,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
               const SizedBox(height: 4),
               Text(
                 '${(data['percentage'] as double).toStringAsFixed(1)}% · '
-                '${data['attended']} of ${data['totalMeetings']} meetings attended',
+                    '${data['attended']} of ${data['totalMeetings']} meetings attended',
                 style: const TextStyle(color: _mutedBlue, fontSize: 13),
               ),
               const SizedBox(height: 16),
@@ -166,13 +165,13 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
                   controller: controller,
                   itemCount: meetings.length,
                   separatorBuilder: (_, __) =>
-                      const Divider(height: 1, color: _dividerBlue),
+                  const Divider(height: 1, color: _dividerBlue),
                   itemBuilder: (_, index) {
                     final m = meetings[index];
                     final date = m['date'] as DateTime;
                     final attended = m['attended'] as bool;
                     final color =
-                        attended ? const Color(0xFF10B981) : Colors.red;
+                    attended ? const Color(0xFF10B981) : Colors.red;
 
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 10),
@@ -254,13 +253,24 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
     final isMember =
         members.valueOrNull?.any((m) => m.userId == user?.uid) ?? false;
 
+    // Use the cycle-aware provider so an active club whose cycle has ended
+    // is shown as Expired, matching the BEM clubs screen behaviour.
+    final clubsAsync = ref.watch(allClubsWithCycleStatusProvider);
+    final effectiveStatus = clubsAsync.valueOrNull
+        ?.firstWhere(
+          (c) => c.clubId == widget.club.clubId,
+      orElse: () => widget.club,
+    )
+        .status ??
+        widget.club.status;
+
     final attendanceParams = user == null
         ? null
         : AttendanceParams(
-            clubId: widget.club.clubId,
-            cycleId: widget.club.cycleId,
-            userId: user.uid,
-          );
+      clubId: widget.club.clubId,
+      cycleId: widget.club.cycleId,
+      userId: user.uid,
+    );
 
     final attendanceAsync = attendanceParams != null
         ? ref.watch(attendanceDataProvider(attendanceParams))
@@ -320,13 +330,13 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
                             : null,
                         child: widget.club.logoUrl == null
                             ? Text(
-                                widget.club.name[0].toUpperCase(),
-                                style: const TextStyle(
-                                  fontSize: 32,
-                                  fontWeight: FontWeight.bold,
-                                  color: _primaryBlue,
-                                ),
-                              )
+                          widget.club.name[0].toUpperCase(),
+                          style: const TextStyle(
+                            fontSize: 32,
+                            fontWeight: FontWeight.bold,
+                            color: _primaryBlue,
+                          ),
+                        )
                             : null,
                       ),
                       const SizedBox(height: 14),
@@ -340,7 +350,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
                         ),
                       ),
                       const SizedBox(height: 10),
-                      _StatusChip(status: widget.club.status),
+                      _StatusChip(status: effectiveStatus),
                     ],
                   ),
                 ),
@@ -372,7 +382,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
                     final total = data['totalMeetings'] as int;
                     final isGood = percentage >= 75;
                     final color =
-                        isGood ? const Color(0xFF10B981) : Colors.red;
+                    isGood ? const Color(0xFF10B981) : Colors.red;
 
                     return _GlassCard(
                       margin: const EdgeInsets.only(bottom: 20),
@@ -400,9 +410,9 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
                                     padding: const EdgeInsets.all(8),
                                     decoration: BoxDecoration(
                                       color:
-                                          color.withValues(alpha: 0.12),
+                                      color.withValues(alpha: 0.12),
                                       borderRadius:
-                                          BorderRadius.circular(10),
+                                      BorderRadius.circular(10),
                                     ),
                                     child: Icon(Icons.how_to_reg_rounded,
                                         color: color, size: 18),
@@ -411,7 +421,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
                                   const Expanded(
                                     child: Column(
                                       crossAxisAlignment:
-                                          CrossAxisAlignment.start,
+                                      CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           'My Attendance',
@@ -439,7 +449,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
                               const SizedBox(height: 16),
                               Row(
                                 crossAxisAlignment:
-                                    CrossAxisAlignment.end,
+                                CrossAxisAlignment.end,
                                 children: [
                                   Text(
                                     '${percentage.toStringAsFixed(1)}%',
@@ -453,7 +463,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
                                   const SizedBox(width: 8),
                                   Padding(
                                     padding:
-                                        const EdgeInsets.only(bottom: 4),
+                                    const EdgeInsets.only(bottom: 4),
                                     child: Text(
                                       '$attended / $total meetings',
                                       style: const TextStyle(
@@ -471,9 +481,9 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
                                 child: LinearProgressIndicator(
                                   value: percentage / 100,
                                   backgroundColor:
-                                      color.withValues(alpha: 0.15),
+                                  color.withValues(alpha: 0.15),
                                   valueColor:
-                                      AlwaysStoppedAnimation<Color>(color),
+                                  AlwaysStoppedAnimation<Color>(color),
                                   minHeight: 8,
                                 ),
                               ),
@@ -502,7 +512,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
                         icon: Icons.schedule_rounded,
                         label: 'Meeting',
                         value:
-                            'Every ${widget.club.meetingDay} at ${widget.club.meetingTime}',
+                        'Every ${widget.club.meetingDay} at ${widget.club.meetingTime}',
                       ),
                       const Divider(height: 1, color: _dividerBlue),
                       _InfoRow(
@@ -529,53 +539,53 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
                   height: 52,
                   child: ElevatedButton(
                     onPressed:
-                        _loadingJoin ? null : () => _toggleJoin(isMember),
+                    _loadingJoin ? null : () => _toggleJoin(isMember),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: isMember
                           ? Colors.red.withValues(alpha: 0.1)
                           : _primaryBlue,
                       foregroundColor:
-                          isMember ? Colors.red : Colors.white,
+                      isMember ? Colors.red : Colors.white,
                       disabledBackgroundColor: isMember
                           ? Colors.red.withValues(alpha: 0.06)
                           : _primaryBlue.withValues(alpha: 0.4),
                       elevation: 0,
                       side: isMember
                           ? BorderSide(
-                              color: Colors.red.withValues(alpha: 0.3))
+                          color: Colors.red.withValues(alpha: 0.3))
                           : BorderSide.none,
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16)),
                     ),
                     child: _loadingJoin
                         ? SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.5,
-                              color:
-                                  isMember ? Colors.red : Colors.white,
-                            ),
-                          )
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color:
+                        isMember ? Colors.red : Colors.white,
+                      ),
+                    )
                         : Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                isMember
-                                    ? Icons.exit_to_app_rounded
-                                    : Icons.add_rounded,
-                                size: 18,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                isMember ? 'Leave Club' : 'Join Club',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 15,
-                                ),
-                              ),
-                            ],
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          isMember
+                              ? Icons.exit_to_app_rounded
+                              : Icons.add_rounded,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          isMember ? 'Leave Club' : 'Join Club',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 15,
                           ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
             ],
