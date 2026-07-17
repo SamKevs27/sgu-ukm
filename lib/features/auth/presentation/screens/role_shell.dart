@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../models/app_models.dart';
+import '../../../../shared/widgets/liquid_glass_nav_bar.dart';
 import '../../../admin/presentation/screens/admin_bod_page.dart';
 import '../../../admin/presentation/screens/admin_clubs_page.dart';
 import '../../../operator/presentation/screens/operator_post_feed_page.dart';
@@ -53,28 +54,12 @@ class _RoleShellState extends State<RoleShell> {
                 IconButton(onPressed: widget.onLogout, icon: const Icon(Icons.logout, color: Color(0xFF0A2C82))),
               ],
             ),
+      extendBody: true,
       body: pages[index],
-      bottomNavigationBar: Container(
-        margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(22),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x12000000),
-              blurRadius: 20,
-              offset: Offset(0, 8),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(22),
-          child: NavigationBar(
-            selectedIndex: index,
-            onDestinationSelected: (value) => setState(() => index = value),
-            destinations: destinations,
-          ),
-        ),
+      bottomNavigationBar: LiquidGlassNavBar(
+        selectedIndex: index,
+        onDestinationSelected: (value) => setState(() => index = value),
+        destinations: destinations,
       ),
     );
   }
